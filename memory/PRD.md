@@ -41,11 +41,17 @@ Implemented via `integration_expert` (Resend) with backward-compatible responses
 - Tested: 13/13 new auth pytest pass + all UI pages + browser silent-refresh verified (iteration_2.json). Build ✅.
 - NOTE: Resend TEST mode only delivers to your own verified Resend address; verify/reset links are also logged to server console in non-production for testing.
 
+## Payment Hardening Added (2026-07-21) — Milestone 3
+Via `integration_expert` (Razorpay). Backward compatible.
+- **Duplicate Payment Protection** — `verifyRazorpayPayment` idempotent (guards on existing payment + order status); no double inventory decrement / duplicate payment.
+- **Razorpay Webhook Verification (fixed CRITICAL)** — webhook was mounted before `req.prisma` middleware → undefined; injected prisma into webhook route. Now confirms PENDING orders on `payment.captured`, idempotent on double-fire, rejects bad/missing signatures (400), returns 500 on error (Razorpay retries).
+- **Invoice PDF** — `GET /api/orders/:id/invoice` (owner-or-admin, non-owner 404) streams pdfkit invoice; "Download Invoice" button on OrderDetails.
+- **Robustness** — inventory decrements via `updateMany` (no P2025); flaky COD 404 resolved.
+- Tested: 10/10 payment-hardening pytest pass (iteration_3.json). Build ✅.
 
-P0 (Auth/Payment/Orders):
-- Forgot/Reset Password, Email Verification, Refresh Tokens (Resend key available)
-- Razorpay Webhook signature verification (handler exists; wire secret + test), Duplicate Payment Protection, Invoice PDF (pdfkit installed)
-- Order: Live Tracking, Cancel Order, Return/Exchange, Refund Tracking
+## Backlog — Missing Production Features (not yet built)
+P0 (Auth/Payment/Orders): DONE — Auth (verify/reset/refresh), Payment (webhook/dup-protect/invoice).
+Remaining P0:
 P1 (Dashboard/Product/Search/Cart):
 - Multiple Addresses, Recently Viewed (partial hook exists), Notification/Security Settings
 - Image Zoom, Related Products, Frequently Bought Together, Instant Search + Suggestions
@@ -57,4 +63,4 @@ P2 (Admin/Security/SEO/Perf):
 - React.lazy/code splitting, lazy loading, skeleton loaders, image optimization
 
 ## Next Tasks
-Start P0 auth features (Forgot/Reset Password + Email Verification + Refresh Tokens) using the provided Resend key, then Razorpay webhook verification + Invoice PDF.
+Next P0: Orders — Live Tracking, Cancel Order, Return/Exchange requests, Refund Tracking. Then P1 (addresses, recently viewed, instant search, related products, save for later) and P2 (admin analytics, export orders, SEO sitemap/robots/structured-data, code-splitting/skeletons).
