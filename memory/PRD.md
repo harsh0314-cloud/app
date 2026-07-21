@@ -60,11 +60,16 @@ Additive `ReturnRequest` model + migration. Backward compatible.
 - **Refund Tracking** — admin `GET/PATCH /api/admin/returns[/:id]`; COMPLETED → order REFUNDED + payment REFUNDED + inventory restock + refundAmount default=total. New Admin "Returns" page + sidebar nav.
 - Tested: 12/12 lifecycle + 39/39 regression pass (iteration_4.json). Build ✅.
 
+## Product & Search Discovery Added (2026-07-21) — Milestone 5
+- **Related Products** — `GET /api/products/:slug/related` (same category, featured fallback). Fixed the old broken related fetch (queried category.id against a slug filter → empty).
+- **Frequently Bought Together** — `GET /api/products/:slug/frequently-bought-together` (co-purchase ranking + category fallback); FBT section on PDP with bundle price + "Add all to Bag".
+- **Instant Search + Suggestions** — `GET /api/products/suggestions?q=` (debounced dropdown in header with thumbnail/name/category/price; click-to-navigate; popular tags when <2 chars).
+- **Image Zoom** — hover magnify (transform scale) on the PDP main image.
+- **Fixes** — added missing `AppError` import in productController (was a latent 500 on unknown slug → now 404); fixed a **guest-redirect bug** in the axios interceptor (guests were bounced to /login on any auth-only 401 like canReview; now only redirect when a token actually existed). Cleaned catalog to 6 active products with valid images.
+- Tested: 10/10 discovery + 61/61 regression pass (iteration_5.json); guest browsing verified. Build ✅.
+
 ## Remaining Backlog
-P1 (Dashboard/Product/Search/Cart):
-- Multiple Addresses, Recently Viewed (partial hook exists), Notification/Security Settings
-- Image Zoom, Related Products, Frequently Bought Together, Instant Search + Suggestions
-- Save for Later, Shipping Estimator, Guest Checkout
+P1 (Dashboard/Cart): Multiple Addresses, Recently Viewed (partial hook exists), Notification/Security Settings, Save for Later, Shipping Estimator, Guest Checkout.
 P2 (Admin/Security/SEO/Perf):
 - Sales Dashboard, Revenue Analytics, Inventory Alerts, Customer Analytics, Export Orders
 - Zod validation coverage, XSS protection, file upload validation (Helmet + rate limit already present)
@@ -72,4 +77,4 @@ P2 (Admin/Security/SEO/Perf):
 - React.lazy/code splitting, lazy loading, skeleton loaders, image optimization
 
 ## Next Tasks
-Next P0: Orders — Live Tracking, Cancel Order, Return/Exchange requests, Refund Tracking. Then P1 (addresses, recently viewed, instant search, related products, save for later) and P2 (admin analytics, export orders, SEO sitemap/robots/structured-data, code-splitting/skeletons).
+Next P1: Cart & Checkout — Save for Later, Shipping Estimator, Guest Checkout; User dashboard — Multiple Addresses, Recently Viewed, Notification/Security Settings. Then P2 (admin analytics + export orders, SEO sitemap/robots/structured-data, code-splitting/skeletons).
