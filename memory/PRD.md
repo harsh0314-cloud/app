@@ -50,8 +50,17 @@ Via `integration_expert` (Razorpay). Backward compatible.
 - Tested: 10/10 payment-hardening pytest pass (iteration_3.json). Build ✅.
 
 ## Backlog — Missing Production Features (not yet built)
-P0 (Auth/Payment/Orders): DONE — Auth (verify/reset/refresh), Payment (webhook/dup-protect/invoice).
-Remaining P0:
+P0 (Auth/Payment/Orders): DONE — Auth (verify/reset/refresh), Payment (webhook/dup-protect/invoice), Orders (tracking/cancel/return-exchange/refund).
+
+## Orders Lifecycle Added (2026-07-21) — Milestone 4
+Additive `ReturnRequest` model + migration. Backward compatible.
+- **Live Order Tracking** — timeline (Placed→Confirmed→Processing→Shipped→Delivered) on OrderDetails with timestamps + tracking number; banner for cancelled/refunded.
+- **Cancel Order** — `PATCH /api/orders/:id/cancel` (owner), allowed pre-shipment; restocks inventory, marks paid orders REFUNDED; 400 otherwise; non-owner 404.
+- **Return/Exchange** — `POST /api/orders/:id/return` (owner, DELIVERED only, no duplicate open request); user form on OrderDetails.
+- **Refund Tracking** — admin `GET/PATCH /api/admin/returns[/:id]`; COMPLETED → order REFUNDED + payment REFUNDED + inventory restock + refundAmount default=total. New Admin "Returns" page + sidebar nav.
+- Tested: 12/12 lifecycle + 39/39 regression pass (iteration_4.json). Build ✅.
+
+## Remaining Backlog
 P1 (Dashboard/Product/Search/Cart):
 - Multiple Addresses, Recently Viewed (partial hook exists), Notification/Security Settings
 - Image Zoom, Related Products, Frequently Bought Together, Instant Search + Suggestions
