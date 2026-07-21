@@ -68,8 +68,16 @@ Additive `ReturnRequest` model + migration. Backward compatible.
 - **Fixes** — added missing `AppError` import in productController (was a latent 500 on unknown slug → now 404); fixed a **guest-redirect bug** in the axios interceptor (guests were bounced to /login on any auth-only 401 like canReview; now only redirect when a token actually existed). Cleaned catalog to 6 active products with valid images.
 - Tested: 10/10 discovery + 61/61 regression pass (iteration_5.json); guest browsing verified. Build ✅.
 
+## Cart & Checkout Added (2026-07-21) — Milestone 6
+Additive `CartItem.savedForLater` + `User.isGuest` migration. Backward compatible.
+- **Save for Later** — `PATCH /api/cart/:itemId/save` toggles; getCart splits active/saved (frontend Saved section with move-to-bag); order creation uses only active items and preserves saved items after checkout.
+- **Shipping Estimator** — `POST /api/shipping/estimate` (metro/standard zones, free ≥₹500 else ₹99, ETA); pincode widget in Cart summary.
+- **Guest Checkout** — `POST /api/auth/guest` (anonymous session) auto-created on first Add-to-Bag; `PATCH /api/auth/guest-details` attaches email/name at checkout; guest banner + email field on CheckoutPage. Reuses full cart/order/payment flow.
+- **Fix** — getCart uses upsert to avoid first-visit cart-create race (P2002).
+- Tested: 12/12 new + 71/71 regression = 83/83 pass (iteration_6.json). Build ✅.
+
 ## Remaining Backlog
-P1 (Dashboard/Cart): Multiple Addresses, Recently Viewed (partial hook exists), Notification/Security Settings, Save for Later, Shipping Estimator, Guest Checkout.
+P1 (User Dashboard): Multiple Addresses, Recently Viewed (partial hook exists), Notification/Security Settings.
 P2 (Admin/Security/SEO/Perf):
 - Sales Dashboard, Revenue Analytics, Inventory Alerts, Customer Analytics, Export Orders
 - Zod validation coverage, XSS protection, file upload validation (Helmet + rate limit already present)
@@ -77,4 +85,4 @@ P2 (Admin/Security/SEO/Perf):
 - React.lazy/code splitting, lazy loading, skeleton loaders, image optimization
 
 ## Next Tasks
-Next P1: Cart & Checkout — Save for Later, Shipping Estimator, Guest Checkout; User dashboard — Multiple Addresses, Recently Viewed, Notification/Security Settings. Then P2 (admin analytics + export orders, SEO sitemap/robots/structured-data, code-splitting/skeletons).
+Next P1: User dashboard — Multiple Addresses, Recently Viewed, Notification/Security Settings. Then P2 (admin analytics + export orders, SEO sitemap/robots/structured-data, code-splitting/skeletons).
