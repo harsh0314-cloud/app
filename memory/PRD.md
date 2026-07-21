@@ -31,7 +31,17 @@ Existing features: auth (register/login/me), products+search+filters, cart, wish
 - Backend: 26/26 pytest pass (auth, products, cart, wishlist, coupons, COD orders, Razorpay order create, reviews, admin CRUD + RBAC).
 - Verified CORS + admin stats shape via curl with browser Origin.
 
-## Backlog — Missing Production Features (not yet built)
+## Auth Features Added (2026-07-21) — Milestone 2
+Implemented via `integration_expert` (Resend) with backward-compatible responses (only added fields):
+- **Email Verification**: register creates EMAIL_VERIFICATION token + sends Resend email; `POST/GET /api/auth/verify-email` marks `isVerified` (single-use). `POST /api/auth/resend-verification` (auth).
+- **Forgot/Reset Password**: `POST /api/auth/forgot-password` (no email enumeration) emails a 1h reset link; `POST /api/auth/reset-password` sets new bcrypt password (single-use, invalidates all sessions).
+- **Refresh Tokens**: register/login now also return `refreshToken` + set httpOnly cookie; `POST /api/auth/refresh` rotates (old token invalidated); `POST /api/auth/logout` deletes session. Tokens stored sha256-hashed in `Session`/`VerificationToken` tables.
+- **Frontend**: `/forgot-password`, `/reset-password`, `/verify-email` pages (luxe styled); "Forgot password?" link on Login; axios interceptor does single-flight silent refresh on 401 before redirecting.
+- Files: server `controllers/authController.js`, `routes/authRoutes.js`, `utils/email.js`, `validators/authValidator.js`; client `services/api.js`, `store/authStore.js`, `pages/ForgotPassword.jsx`, `pages/ResetPassword.jsx`, `pages/VerifyEmail.jsx`, `pages/Login.jsx`, `App.jsx`.
+- Tested: 13/13 new auth pytest pass + all UI pages + browser silent-refresh verified (iteration_2.json). Build ✅.
+- NOTE: Resend TEST mode only delivers to your own verified Resend address; verify/reset links are also logged to server console in non-production for testing.
+
+
 P0 (Auth/Payment/Orders):
 - Forgot/Reset Password, Email Verification, Refresh Tokens (Resend key available)
 - Razorpay Webhook signature verification (handler exists; wire secret + test), Duplicate Payment Protection, Invoice PDF (pdfkit installed)
