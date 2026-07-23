@@ -51,10 +51,12 @@ export default function ImageReplaceModal({ currentImage, onClose, onSelect }) {
       const fd = new FormData();
       fd.append('images', file);
       const res = await api.post('/admin/upload', fd);
-      const url = res.data?.images?.[0]?.url;
+      const url = res.data?.images?.[0]?.url || res.data?.data?.images?.[0]?.url;
       if (url) {
         setPicked(url);
         toast.success('Uploaded to Cloudinary');
+      } else {
+        toast.error('Upload succeeded but no URL was returned');
       }
     } catch (err) {
       toast.error(err.response?.data?.message || 'Upload failed');

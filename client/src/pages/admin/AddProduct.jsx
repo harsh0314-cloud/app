@@ -41,7 +41,7 @@ export default function AddProduct() {
       const fd = new FormData();
       files.forEach((f) => fd.append('images', f));
       const res = await api.post('/admin/upload', fd);
-      const uploaded = res.data?.images || [];
+      const uploaded = res.data?.images || res.data?.data?.images || [];
       const mapped = uploaded.map((img) => ({
         id: img.publicId || img.url,
         urls: { small: img.url, regular: img.url },
