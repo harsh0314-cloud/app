@@ -1,6 +1,7 @@
 const { PrismaClient } = require('@prisma/client');
 const { AppError } = require('../utils/AppError');
 const { sendOrderStatusEmail } = require('../utils/email');
+const { destroyByUrl } = require('../utils/cloudinary');
 
 const prisma = new PrismaClient();
 
@@ -154,7 +155,7 @@ exports.createProduct = async (req, res, next) => {
 exports.updateProduct = async (req, res, next) => {
   try {
     const { id } = req.params;
-    const { name, slug, price, comparePrice, description, categoryId, brandId, isActive, isNewArrival, isBestSeller } = req.body;
+    const { name, slug, price, comparePrice, description, categoryId, brandId, isActive, isNewArrival, isBestSeller, image } = req.body;
 
     const updateData = {};
     if (name !== undefined) updateData.name = name;
@@ -173,9 +174,33 @@ exports.updateProduct = async (req, res, next) => {
       data: updateData,
     });
 
+    // Optional primary-image replacement (image = new secure URL from Unsplash or Cloudinary)
+    if (image && typeof image === 'string') {
+      const oldPrimary =
+        (await prisma.productImage.findFirst({ where: { productId: id, isPrimary: true } })) ||
+        (await prisma.productImage.findFirst({ where: { productId: id } }));
+      const oldUrl = oldPrimary?.url;
+
+      if (oldPrimary) {
+        await prisma.productImage.update({ where: { id: oldPrimary.id }, data: { url: image, isPrimary: true } });
+      } else {
+        await prisma.productImage.create({ data: { productId: id, url: image, isPrimary: true } });
+      }
+
+      // Delete the previous asset from Cloudinary ONLY (never touch Unsplash/other URLs), and only if it changed
+      if (oldUrl && oldUrl !== image && oldUrl.includes('res.cloudinary.com')) {
+        destroyByUrl(oldUrl).catch((e) => console.warn('[cloudinary] old image cleanup failed:', e.message));
+      }
+    }
+
+    const fresh = await prisma.product.findUnique({
+      where: { id },
+      include: { images: { orderBy: { isPrimary: 'desc' } } },
+    });
+
     res.status(200).json({
       status: 'success',
-      data: { product },
+      data: { product: fresh || product },
     });
   } catch (error) {
     if (error.code === 'P2025') {

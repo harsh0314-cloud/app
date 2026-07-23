@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { Trash2, Edit2, Package, Search,} from 'lucide-react';
+import { Trash2, Edit2, Package, Search, Image as ImageIcon } from 'lucide-react';
 import api from '../../services/api';
 import toast from 'react-hot-toast';
+import ImageReplaceModal from '../../components/admin/ImageReplaceModal';
 
 export default function ProductList() {
   const [products, setProducts] = useState([]);
@@ -11,6 +12,7 @@ export default function ProductList() {
   const [sortBy, setSortBy] = useState('newest');
   const [editingProduct, setEditingProduct] = useState(null);
   const [editForm, setEditForm] = useState({});
+  const [imageModalProduct, setImageModalProduct] = useState(null);
 
   const fetchProducts = () => {
     setLoading(true);
@@ -133,7 +135,20 @@ export default function ProductList() {
                 <tr key={product.id} className="border-b border-border last:border-0 hover:bg-gray-50 dark:hover:bg-gray-800/50">
                   <td className="px-4 py-3">
                     <div className="flex items-center gap-3">
-                      <img src={product.images?.[0]?.url} alt={product.name} className="w-10 h-10 rounded-lg object-cover" />
+                      <div className="relative">
+                        <img src={(editingProduct === product.id && editForm.image) || product.images?.[0]?.url} alt={product.name} className="w-10 h-10 rounded-lg object-cover" />
+                        {editingProduct === product.id && (
+                          <button
+                            type="button"
+                            onClick={() => setImageModalProduct(product)}
+                            data-testid={`replace-image-${product.id}`}
+                            title="Replace image"
+                            className="absolute -bottom-1 -right-1 bg-foreground text-white rounded-full p-1 shadow hover:opacity-90"
+                          >
+                            <ImageIcon size={10} />
+                          </button>
+                        )}
+                      </div>
                       <div>
                         <p className="font-medium">{product.name}</p>
                         <p className="text-xs text-muted-foreground">{product.category?.name}</p>
@@ -216,6 +231,14 @@ export default function ProductList() {
             </tbody>
           </table>
         </div>
+      )}
+
+      {imageModalProduct && (
+        <ImageReplaceModal
+          currentImage={imageModalProduct.images?.[0]?.url}
+          onClose={() => setImageModalProduct(null)}
+          onSelect={(url) => setEditForm((f) => ({ ...f, image: url }))}
+        />
       )}
     </div>
   );

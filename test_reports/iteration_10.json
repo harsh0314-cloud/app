@@ -1,0 +1,37 @@
+{
+  "summary": "Tested Admin Product Image Replace flow on /admin/products. Inline edit regression, Replace button visibility, modal render (portal), Unsplash search+select+persist, and modal Cancel all PASS. Cloudinary upload via the modal FAILS with 400 due to an axios Content-Type bug in the shared api client. A raw fetch to the same endpoint succeeds (returns Cloudinary secure_url with 201), confirming the backend is fine and the issue is purely on the client.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [
+      {
+        "flow": "Cloudinary upload from ImageReplaceModal (and same bug affects AddProduct upload)",
+        "issue": "POST /api/admin/upload returns 400 'No image file provided' when called via axios. Root cause: /app/client/src/services/api.js sets default header 'Content-Type: application/json'. When sending FormData, axios preserves this default header instead of letting the browser set 'multipart/form-data; boundary=...'. Multer therefore cannot parse the multipart body and receives no file. Verified: raw browser fetch(FormData) to /api/admin/upload returns 201 with a real Cloudinary URL, so the backend & Cloudinary keys work correctly.",
+        "affected_selectors": ["[data-testid='image-modal-upload-input']", "[data-testid='image-modal-save']"]
+      }
+    ],
+    "design_issues": []
+  },
+  "test_report_links": [],
+  "action_items": [
+    "Fix axios FormData Content-Type in /app/client/src/services/api.js. Recommended: add a request interceptor that deletes config.headers['Content-Type'] when config.data instanceof FormData. Alternatively, in ImageReplaceModal.jsx and AddProduct.jsx pass { headers: { 'Content-Type': 'multipart/form-data' } } to api.post (axios will then add the correct boundary).",
+    "After fix, re-verify Cloudinary upload flow in ImageReplaceModal end-to-end, including the 'Uploaded to Cloudinary' toast, New-preview update, Use This Image, and row Save persistence."
+  ],
+  "critical_code_review_comments": [
+    "Global default 'Content-Type: application/json' in api.js is a foot-gun for any FormData/multipart requests. Every current + future upload endpoint will silently break. Prefer letting axios choose Content-Type per request, or strip it in an interceptor when data is FormData/Blob.",
+    "ImageReplaceModal reads res.data?.images?.[0]?.url which relies on the response interceptor unwrapping { status, data } — that is currently correct, but couples the modal to interceptor behavior. Consider a defensive fallback (res.data?.data?.images ?? res.data?.images).",
+    "handleUpload in ImageReplaceModal silently no-ops if uploaded URL is missing (no toast). Suggest surfacing a user-facing error in that edge case.",
+    "The uploadController message 'Image upload is not configured.' is 503 while file-filter is 400; the modal toast surfaces only response.data.message — good, but user has no indication of a network / boundary issue in this axios failure case."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "100% (raw fetch upload works; PATCH /admin/products/:id works)", "frontend": "~85% (Unsplash flow + regression pass; Cloudinary UI upload broken)"},
+  "test_credentials": "admin@storex.com / Admin@1234",
+  "seed_data_creation": "Product 'Puma Tshirt' (id 77e3e106-dcd6-4f9a-af00-d60ab46b21a3) image was replaced during Unsplash flow test to https://images.unsplash.com/photo-1521572163474-6864f9cf17ab?w=600 and persisted via PATCH /api/admin/products/:id (backend responded 200 with 835-byte payload; success toast 'Product updated' observed). Please normalize/verify as needed.",
+  "retest_needed": true,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "The ImageReplaceModal renders correctly via portal with all required data-testids: image-replace-modal, image-modal-search-input, image-modal-upload-label, image-modal-upload-input, image-modal-save, image-modal-close, and replace-image-<id>. Unsplash flow persistence was verified end-to-end. The remaining blocker is the axios Content-Type default: /api/admin/upload returns 400 'No image file provided' via the modal because the multipart boundary is missing. A raw fetch(FormData) from the browser DevTools context returns 201 with a valid https://res.cloudinary.com/... URL, proving Cloudinary is configured correctly. After the client fix, re-run the upload sub-flow.",
+  "rca of the issue": "Client-side axios default header 'Content-Type: application/json' in /app/client/src/services/api.js overrides browser's automatic multipart/form-data boundary generation for FormData bodies. Reproduction: open ImageReplaceModal from any row edit mode, click 'Upload from your computer', select any valid PNG/JPG. Backend logs show: 'RAW ERROR: AppError: No image file provided.' (uploadController line 12) with HTTP 400. Mitigation: add axios request interceptor that removes Content-Type when config.data instanceof FormData."
+}
