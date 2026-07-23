@@ -40,7 +40,7 @@ export default function AddProduct() {
     try {
       const fd = new FormData();
       files.forEach((f) => fd.append('images', f));
-      const res = await api.post('/admin/upload', fd, { headers: { 'Content-Type': 'multipart/form-data' } });
+      const res = await api.post('/admin/upload', fd);
       const uploaded = res.data?.images || [];
       const mapped = uploaded.map((img) => ({
         id: img.publicId || img.url,
@@ -69,26 +69,17 @@ export default function AddProduct() {
     if (!searchQuery.trim()) return;
     setSearching(true);
     try {
-      // If no API key, use a fallback demo approach
+      // Without a real Unsplash key, serve curated demo images directly (no wasted request)
       if (!UNSPLASH_ACCESS_KEY) {
-        // Fallback: use curated photos endpoint (no key needed for limited access)
-        const res = await fetch(`https://api.unsplash.com/search/photos?query=${encodeURIComponent(searchQuery)}&per_page=12&client_id=YOUR_ACCESS_KEY`);
-        if (!res.ok) {
-          // If API fails, show demo images
-          setUnsplashImages([
-            { id: 'demo1', urls: { small: 'https://images.unsplash.com/photo-1521572163474-6864f9cf17ab?w=300', regular: 'https://images.unsplash.com/photo-1521572163474-6864f9cf17ab?w=600' }, alt_description: 'T-shirt' },
-            { id: 'demo2', urls: { small: 'https://images.unsplash.com/photo-1618354691373-d851c5c3a990?w=300', regular: 'https://images.unsplash.com/photo-1618354691373-d851c5c3a990?w=600' }, alt_description: 'Clothing' },
-            { id: 'demo3', urls: { small: 'https://images.unsplash.com/photo-1581655353564-df123a1eb820?w=300', regular: 'https://images.unsplash.com/photo-1581655353564-df123a1eb820?w=600' }, alt_description: 'Fashion' },
-            { id: 'demo4', urls: { small: 'https://images.unsplash.com/photo-1562157873-818bc0726f68?w=300', regular: 'https://images.unsplash.com/photo-1562157873-818bc0726f68?w=600' }, alt_description: 'Apparel' },
-            { id: 'demo5', urls: { small: 'https://images.unsplash.com/photo-1576566588028-4147f3842f27?w=300', regular: 'https://images.unsplash.com/photo-1576566588028-4147f3842f27?w=600' }, alt_description: 'Wear' },
-            { id: 'demo6', urls: { small: 'https://images.unsplash.com/photo-1556821840-3a63f95609a7?w=300', regular: 'https://images.unsplash.com/photo-1556821840-3a63f95609a7?w=600' }, alt_description: 'Style' },
-          ]);
-          toast.info('Add your Unsplash API key for real image search. Using demo images for now.');
-          setSearching(false);
-          return;
-        }
-        const data = await res.json();
-        setUnsplashImages(data.results || []);
+        setUnsplashImages([
+          { id: 'demo1', urls: { small: 'https://images.unsplash.com/photo-1521572163474-6864f9cf17ab?w=300', regular: 'https://images.unsplash.com/photo-1521572163474-6864f9cf17ab?w=600' }, alt_description: 'T-shirt' },
+          { id: 'demo2', urls: { small: 'https://images.unsplash.com/photo-1618354691373-d851c5c3a990?w=300', regular: 'https://images.unsplash.com/photo-1618354691373-d851c5c3a990?w=600' }, alt_description: 'Clothing' },
+          { id: 'demo3', urls: { small: 'https://images.unsplash.com/photo-1581655353564-df123a1eb820?w=300', regular: 'https://images.unsplash.com/photo-1581655353564-df123a1eb820?w=600' }, alt_description: 'Fashion' },
+          { id: 'demo4', urls: { small: 'https://images.unsplash.com/photo-1562157873-818bc0726f68?w=300', regular: 'https://images.unsplash.com/photo-1562157873-818bc0726f68?w=600' }, alt_description: 'Apparel' },
+          { id: 'demo5', urls: { small: 'https://images.unsplash.com/photo-1576566588028-4147f3842f27?w=300', regular: 'https://images.unsplash.com/photo-1576566588028-4147f3842f27?w=600' }, alt_description: 'Wear' },
+          { id: 'demo6', urls: { small: 'https://images.unsplash.com/photo-1556821840-3a63f95609a7?w=300', regular: 'https://images.unsplash.com/photo-1556821840-3a63f95609a7?w=600' }, alt_description: 'Style' },
+        ]);
+        toast('Add your Unsplash API key for real image search. Showing demo images.');
       } else {
         const res = await fetch(`https://api.unsplash.com/search/photos?query=${encodeURIComponent(searchQuery)}&per_page=12&client_id=${UNSPLASH_ACCESS_KEY}`);
         const data = await res.json();
@@ -120,7 +111,7 @@ export default function AddProduct() {
     const target = selectedImages.find((img) => img.id === imageId);
     setSelectedImages((prev) => prev.filter((img) => img.id !== imageId));
     if (target?._cloudinary && target?.urls?.regular) {
-      api.delete('/admin/upload', { data: { url: target.urls.regular } }).catch(() => {});
+      api.delete('/admin/upload', { data: { url: target.urls.regular } }).catch((err) => console.warn('[cloudinary] delete failed:', err?.message));
     }
   };
 
