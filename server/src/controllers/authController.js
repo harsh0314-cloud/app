@@ -2,7 +2,7 @@ const bcrypt = require('bcryptjs');
 const crypto = require('crypto');
 const { AppError } = require('../utils/AppError');
 const { generateToken } = require('../middleware/auth');
-const { sendVerificationEmail, sendPasswordResetEmail } = require('../utils/email');
+const { sendVerificationEmail, sendPasswordResetEmail, sendWelcomeEmail } = require('../utils/email');
 
 const REFRESH_TTL_DAYS = 30;
 const hashToken = (raw) => crypto.createHash('sha256').update(raw).digest('hex');
@@ -57,6 +57,7 @@ exports.register = async (req, res, next) => {
     });
 
     sendVerification(req.prisma, user).catch((e) => console.error('[auth] verification email failed:', e.message));
+    sendWelcomeEmail(user.email, user.firstName).catch((e) => console.error('[auth] welcome email failed:', e.message));
 
     const token = generateToken(user.id, user.role);
     const refreshToken = await issueRefreshToken(req.prisma, user.id, req, res);
