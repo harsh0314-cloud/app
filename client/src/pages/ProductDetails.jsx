@@ -9,6 +9,9 @@ import { useCartStore } from '../store/cartStore';
 import useWishlist from '../hooks/useWishlist';
 import { fmtPrice } from '../components/ProductCard';
 import ReviewSection from '../components/ReviewSection';
+import { pushRecentlyViewed } from '../hooks/useRecentlyViewed';
+import RecentlyViewed from '../components/RecentlyViewed';
+import useAuthStore from '../store/authStore';
 
 const ProductCard = lazy(() => import('../components/ProductCard'));
 
@@ -35,6 +38,13 @@ export default function ProductDetails() {
       .then((res) => {
         const p = res.data?.product || res.data?.data?.product;
         setProduct(p);
+        // Wire Recently Viewed end-to-end: localStorage for everyone + server persistence for logged-in users
+        if (p?.id) {
+          pushRecentlyViewed(p);
+          if (useAuthStore.getState().user) {
+            api.post('/users/recently-viewed', { productId: p.id }).catch(() => {});
+          }
+        }
       })
       .catch(() => toast.error('Product not found'))
       .finally(() => setLoading(false));
@@ -65,6 +75,42 @@ export default function ProductDetails() {
   const wished = isWishlisted(product.id);
   const onSale = product.comparePrice && Number(product.comparePrice) > Number(product.price);
   const discount = onSale ? Math.round((1 - Number(product.price) / Number(product.comparePrice)) * 100) : 0;
+  const productUrl = `https://storex-frontend-gold.vercel.app/products/${slug}`;
+  const inStock = (product.inventory?.quantity ?? 1) > 0;
+  const reviews = product.reviews || [];
+  const avgRating = reviews.length ? reviews.reduce((s, r) => s + (r.rating || 0), 0) / reviews.length : 0;
+
+  const jsonLd = [
+    {
+      '@context': 'https://schema.org',
+      '@type': 'Product',
+      name: product.name,
+      image: (product.images || []).map((i) => i.url).filter(Boolean),
+      description: product.description || product.shortDescription || product.name,
+      sku: product.sku,
+      brand: { '@type': 'Brand', name: product.brand?.name || 'StoreX' },
+      offers: {
+        '@type': 'Offer',
+        url: productUrl,
+        priceCurrency: 'INR',
+        price: String(product.price),
+        availability: inStock ? 'https://schema.org/InStock' : 'https://schema.org/OutOfStock',
+      },
+      ...(reviews.length
+        ? { aggregateRating: { '@type': 'AggregateRating', ratingValue: avgRating.toFixed(1), reviewCount: reviews.length } }
+        : {}),
+    },
+    {
+      '@context': 'https://schema.org',
+      '@type': 'BreadcrumbList',
+      itemListElement: [
+        { '@type': 'ListItem', position: 1, name: 'Home', item: 'https://storex-frontend-gold.vercel.app/' },
+        { '@type': 'ListItem', position: 2, name: 'Products', item: 'https://storex-frontend-gold.vercel.app/products' },
+        ...(product.category?.name ? [{ '@type': 'ListItem', position: 3, name: product.category.name, item: `https://storex-frontend-gold.vercel.app/products?category=${product.category.slug || ''}` }] : []),
+        { '@type': 'ListItem', position: product.category?.name ? 4 : 3, name: product.name, item: productUrl },
+      ],
+    },
+  ];
 
   const handleAdd = async () => {
     setAdding(true);
@@ -112,7 +158,9 @@ export default function ProductDetails() {
         description={product.description?.substring(0, 160) || `Shop ${product.name} at StoreX. Premium quality, designed in-house.`}
         keywords={`${product.name}, ${product.category?.name}, luxury clothing, StoreX`}
         image={product.images?.[0]?.url}
-        url={`https://storex-frontend-gold.vercel.app/products/${slug}`}
+        url={productUrl}
+        type="product"
+        jsonLd={jsonLd}
       />
 
       <div className="container-luxe py-14">
@@ -256,6 +304,8 @@ export default function ProductDetails() {
             </div>
           </div>
         )}
+
+        <RecentlyViewed excludeId={product.id} />
       </div>
     </>
   );

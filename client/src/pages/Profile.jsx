@@ -16,6 +16,9 @@ import toast from 'react-hot-toast';
 import { 
   EmptyState, SkeletonCard, StatCard, SectionTitle, ComingSoonCard 
 } from '../components/profile/ProfileUI';
+import AddressManager from '../components/profile/AddressManager';
+import NotificationsPanel from '../components/profile/NotificationsPanel';
+import RecentlyViewed from '../components/RecentlyViewed';
 
 const passwordSchema = z.object({
   currentPassword: z.string().min(1, 'Required'),
@@ -197,6 +200,7 @@ const DashboardTab = ({ orders, wishlist, loading, setActiveTab, navigate }) => 
         actionLink="/products"
       />
     )}
+    <RecentlyViewed />
   </div>
 );
 
@@ -531,12 +535,12 @@ export default function Profile() {
                   )}
                   {activeTab === 'settings' && <SettingsTab user={user} />}
 
-                  {activeTab === 'addresses' && <EmptyState icon={MapPin} title="No saved addresses" description="Add your shipping addresses for a faster checkout experience." action="Add Address" actionLink="/checkout" />}
+                  {activeTab === 'addresses' && <AddressManager />}
                   {activeTab === 'coupons' && <EmptyState icon={Tag} title="No coupons available" description="You don't have any coupons right now. Check back later for exclusive offers!" />}
                   {activeTab === 'rewards' && <ComingSoonCard title="Loyalty Rewards" description="Earn points on every purchase and redeem them for exclusive discounts." icon={Trophy} />}
                   {activeTab === 'reviews' && <EmptyState icon={Star} title="No reviews yet" description="Share your thoughts on products you've purchased to help other customers." />}
                   {activeTab === 'measurements' && <ComingSoonCard title="Size & Measurements" description="Save your body measurements for a personalized sizing recommendation." icon={Move} />}
-                  {activeTab === 'notifications' && <EmptyState icon={Bell} title="All caught up!" description="You don't have any new notifications at the moment." />}
+                  {activeTab === 'notifications' && <NotificationsPanel />}
                 </div>
               </motion.div>
             </AnimatePresence>

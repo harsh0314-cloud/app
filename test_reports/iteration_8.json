@@ -1,0 +1,35 @@
+{
+  "summary": "End-to-end verification of iteration-8 features on StoreX. Backend: 18/18 pytest cases pass (addresses CRUD + default + XSS sanitization, notifications feed + mark-all-read, recently-viewed, admin analytics sales/revenue/customers/low-stock/CSV export, inventory list fix, robots.txt & sitemap.xml). Frontend: user & admin login OK, Addresses tab full CRUD via data-testids works and new address appears in list, Notifications panel loads, Recently Viewed rail shows on product detail page and profile dashboard after viewing multiple products, JSON-LD Product + BreadcrumbList schema injected in product page head, Admin Analytics page renders stat cards + sales-chart + range dropdown + Export Orders (CSV) button (data-testids all present), Admin Inventory now lists products (previously empty).",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "/api/users/addresses", "issue": "Error responses still include 'stack' trace field (dev-mode). Carryover from iter-7 — should be gated on NODE_ENV in production."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/tests/backend_test.py",
+    "/app/test_reports/pytest/pytest_results.xml"
+  ],
+  "action_items": [
+    "(Non-blocking, carried over) Gate error 'stack' in JSON responses on NODE_ENV=production in the global error handler."
+  ],
+  "critical_code_review_comments": [
+    "Backend error handler still leaks Node stack traces in JSON responses (needs env-gated behavior).",
+    "RecentlyViewed component quietly falls back to localStorage on API error — this is fine, but any 401 during that call still surfaces in browser console; consider a silent catch."
+  ],
+  "updated_files": [
+    "/app/tests/backend_test.py"
+  ],
+  "success_rate": {"backend": "100% (18/18)", "frontend": "100% of requested flows verified"},
+  "test_credentials": "admin@storex.com/Admin@1234 and user@storex.com/User@1234 (seeded in Neon)",
+  "seed_data_creation": "During testing: created + deleted a TEST_John address and an XSS test address for user@storex.com; recorded product views for Puma Tshirt and Nike Air Max1 in the user's recently-viewed list. No orders placed.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Preview URL: https://d558cfe5-5754-479f-9b3d-d01f1b4b5a8f.preview.emergentagent.com. Backend Node on 8001 (routes under /api). All new endpoints use {status,'data':...} envelope and axios interceptor in client unwraps to response.data = inner data. Address schema fields (Zod) are: firstName,lastName,phone,addressLine1,addressLine2?,city,state,postalCode,country,label?,isDefault?. Admin analytics endpoints are /api/admin/analytics/{sales,revenue,customers}. Inventory list endpoint returns {inventory:[...]}. CSV export at /api/admin/orders/export. Only 2 products currently seeded (Puma Tshirt & Nike Air Max1). All 18 pytest tests are green.",
+  "rca_of_the_issue": "N/A — no regressions found. Previously reported header LOGOUT-after-add-to-cart bug from iter-7 was not re-tested this round but is unrelated to iter-8 scope."
+}

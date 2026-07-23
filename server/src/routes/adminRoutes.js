@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const adminController = require('../controllers/adminController');
+const analyticsController = require('../controllers/analyticsController');
 const { authenticate } = require('../middleware/auth');
 const { authorize } = require('../middleware/rbac'); 
 
@@ -16,13 +17,20 @@ router.post('/products', adminController.createProduct);
 router.patch('/products/:id', adminController.updateProduct);
 router.delete('/products/:id', adminController.deleteProduct);
 
+// --- ANALYTICS ---
+router.get('/analytics/sales', analyticsController.getSalesAnalytics);
+router.get('/analytics/revenue', analyticsController.getRevenueAnalytics);
+router.get('/analytics/customers', analyticsController.getCustomerAnalytics);
+
 // --- INVENTORY ---
 router.get('/inventory', adminController.getAllInventory);
+router.get('/inventory/low-stock', analyticsController.getLowStockAlerts);
 router.patch('/inventory/:id', adminController.updateInventory);
 router.post('/inventory/bulk', adminController.bulkUpdateInventory);
 
 // --- ORDERS ---
 router.get('/orders', adminController.getAllOrders);
+router.get('/orders/export', analyticsController.exportOrdersCsv);
 router.patch('/orders/:id/status', adminController.updateOrderStatus);
 
 // --- RETURNS / EXCHANGES ---

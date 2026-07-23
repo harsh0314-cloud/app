@@ -1,5 +1,6 @@
 const { PrismaClient } = require('@prisma/client');
 const { AppError } = require('../utils/AppError');
+const { sendOrderStatusEmail } = require('../utils/email');
 
 const prisma = new PrismaClient();
 
@@ -268,7 +269,7 @@ exports.bulkUpdateInventory = async (req, res, next) => {
     await prisma.$transaction(
       updates.map((update) =>
         prisma.inventory.update({
-          where: { id: update.id },
+          where: update.productId ? { productId: update.productId } : { id: update.id },
           data: {
             quantity: update.quantity !== undefined ? parseInt(update.quantity) : undefined,
             lowStockThreshold: update.lowStockThreshold !== undefined ? parseInt(update.lowStockThreshold) : undefined,
@@ -339,7 +340,29 @@ exports.updateOrderStatus = async (req, res, next) => {
     const order = await prisma.order.update({
       where: { id },
       data: updateData,
+      include: { user: { select: { id: true, email: true, firstName: true } } },
     });
+
+    // In-app notification + transactional email (best-effort, never blocks the response)
+    if (order.userId) {
+      prisma.notification.create({
+        data: {
+          userId: order.userId,
+          title: `Order ${order.orderNumber} ${status.toLowerCase()}`,
+          message: `Your order ${order.orderNumber} status is now ${status}.`,
+          type: 'ORDER',
+          data: { orderId: order.id, status },
+        },
+      }).catch((e) => console.error('[notification] create failed:', e.message));
+    }
+    if (order.user?.email) {
+      sendOrderStatusEmail(order.user.email, {
+        orderNumber: order.orderNumber,
+        status,
+        firstName: order.user.firstName,
+        trackingNumber: order.trackingNumber,
+      }).catch((e) => console.error('[email] order status failed:', e.message));
+    }
 
     res.status(200).json({
       status: 'success',

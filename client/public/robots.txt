@@ -1,0 +1,13 @@
+User-agent: *
+Allow: /
+
+# Disallow authenticated / transactional areas from indexing
+Disallow: /admin
+Disallow: /checkout
+Disallow: /cart
+Disallow: /profile
+Disallow: /orders
+Disallow: /reset-password
+Disallow: /verify-email
+
+Sitemap: https://storex-frontend-gold.vercel.app/sitemap.xml

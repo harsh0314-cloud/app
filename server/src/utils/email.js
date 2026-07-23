@@ -61,3 +61,28 @@ exports.sendPasswordResetEmail = async (to, token, firstName = '') => {
     <p style="font-size:12px;color:#999;line-height:1.6;">This link expires in 1 hour. If you didn't request this, you can safely ignore this email.<br><span style="color:#666;word-break:break-all;">${link}</span></p>`;
   return send(to, 'Reset your StoreX password', shell('Reset your password', body));
 };
+
+const ORDER_STATUS_COPY = {
+  CONFIRMED: { subject: 'Your StoreX order is confirmed', title: 'Order confirmed', line: 'Thanks for your order! We\'ve received it and it\'s being prepared.' },
+  PROCESSING: { subject: 'Your StoreX order is being processed', title: 'Order processing', line: 'Good news — your order is now being processed.' },
+  SHIPPED: { subject: 'Your StoreX order has shipped', title: 'Order shipped', line: 'Your order is on its way!' },
+  DELIVERED: { subject: 'Your StoreX order was delivered', title: 'Order delivered', line: 'Your order has been delivered. We hope you love it!' },
+  CANCELLED: { subject: 'Your StoreX order was cancelled', title: 'Order cancelled', line: 'Your order has been cancelled. If this was a mistake, please contact support.' },
+  REFUNDED: { subject: 'Your StoreX order was refunded', title: 'Order refunded', line: 'Your refund has been processed.' },
+};
+
+// Fire-and-forget transactional email for order status changes. No-ops safely if RESEND_API_KEY is unset.
+exports.sendOrderStatusEmail = async (to, { orderNumber, status, firstName = '', trackingNumber } = {}) => {
+  const copy = ORDER_STATUS_COPY[status];
+  if (!copy) return { skipped: true };
+  const link = `${CLIENT_URL}/orders`;
+  const tracking = trackingNumber
+    ? `<p style="font-size:13px;color:#444;margin-top:8px;">Tracking number: <strong>${trackingNumber}</strong></p>`
+    : '';
+  const body = `
+    <p style="font-size:14px;line-height:1.6;color:#444;">Hi ${firstName || 'there'}, ${copy.line}</p>
+    <p style="font-size:13px;color:#444;">Order <strong>${orderNumber}</strong> — status: <strong>${status}</strong></p>
+    ${tracking}
+    <p style="margin:28px 0;">${button(link, 'View Order')}</p>`;
+  return send(to, copy.subject, shell(copy.title, body));
+};
