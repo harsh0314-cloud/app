@@ -106,10 +106,10 @@ export default function AdminAnalytics() {
             <h2 className="font-display font-bold mb-6">Revenue Trend</h2>
             <div className="flex items-end gap-1 h-48" data-testid="sales-chart">
               {sales?.series?.map((d) => (
-                <div key={d.date} className="flex-1 group relative flex flex-col justify-end items-center">
+                <div key={d.date} className="flex-1 group relative flex flex-col justify-end items-center h-full">
                   <div
-                    className="w-full bg-foreground/80 hover:bg-foreground transition-colors rounded-t"
-                    style={{ height: `${Math.max(2, (d.revenue / maxRev) * 100)}%` }}
+                    className="w-full bg-foreground/80 hover:bg-foreground transition-colors rounded-t min-h-[2px]"
+                    style={{ height: `${maxRev > 0 ? Math.max(1, (d.revenue / maxRev) * 100) : 0}%` }}
                     title={`${d.date}: ${inr(d.revenue)} (${d.orders} orders)`}
                   />
                 </div>

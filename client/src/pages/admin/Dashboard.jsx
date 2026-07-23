@@ -215,11 +215,11 @@ export default function Dashboard() {
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       {data.map(customer => (
                         <div key={customer.id} className="flex items-center gap-4 border border-gray-200 dark:border-gray-700 p-4 rounded-lg hover:shadow-md transition-shadow">
-                          <div className="w-12 h-12 rounded-full bg-purple-100 text-purple-600 flex items-center justify-center font-bold text-lg">
-                            {customer.firstName[0]}{customer.lastName[0]}
+                          <div className="w-12 h-12 rounded-full bg-purple-100 text-purple-600 flex items-center justify-center font-bold text-lg uppercase">
+                            {`${customer.firstName?.[0] || ''}${customer.lastName?.[0] || ''}` || customer.email?.[0] || 'U'}
                           </div>
                           <div className="flex-1 min-w-0">
-                            <p className="font-bold text-gray-900 dark:text-white truncate">{customer.firstName} {customer.lastName}</p>
+                            <p className="font-bold text-gray-900 dark:text-white truncate">{`${customer.firstName || ''} ${customer.lastName || ''}`.trim() || 'Unnamed User'}</p>
                             <div className="flex items-center gap-2 text-xs text-gray-500 mt-1">
                               <Mail size={12} /> <span className="truncate">{customer.email}</span>
                             </div>
