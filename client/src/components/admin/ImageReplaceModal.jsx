@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { createPortal } from 'react-dom';
-import { X, Search, Upload } from 'lucide-react';
+import { X, Search, Upload, Trash2 } from 'lucide-react';
 import api from '../../services/api';
 import toast from 'react-hot-toast';
 
@@ -17,7 +17,7 @@ const DEMO = [
 
 // Lightweight overlay for replacing a product's primary image. Supports BOTH
 // Unsplash search and Cloudinary upload. Returns the chosen secure URL via onSelect.
-export default function ImageReplaceModal({ currentImage, onClose, onSelect }) {
+export default function ImageReplaceModal({ currentImage, onClose, onSelect, onClear }) {
   const [query, setQuery] = useState('');
   const [results, setResults] = useState([]);
   const [searching, setSearching] = useState(false);
@@ -142,6 +142,16 @@ export default function ImageReplaceModal({ currentImage, onClose, onSelect }) {
           <button onClick={onClose} className="flex-1 py-2.5 border border-border rounded-xl text-sm font-medium hover:bg-muted">Cancel</button>
           <button data-testid="image-modal-save" onClick={confirm} disabled={!picked} className="flex-1 py-2.5 bg-foreground text-white rounded-xl text-sm font-semibold disabled:opacity-50">Use This Image</button>
         </div>
+
+        {currentImage && onClear && (
+          <button
+            data-testid="image-modal-clear"
+            onClick={() => { onClear(); onClose(); }}
+            className="w-full mt-3 text-xs font-semibold text-red-500 hover:text-red-600 flex items-center justify-center gap-1.5"
+          >
+            <Trash2 size={13} /> Remove current image
+          </button>
+        )}
       </div>
     </div>,
     document.body

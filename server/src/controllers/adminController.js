@@ -155,7 +155,7 @@ exports.createProduct = async (req, res, next) => {
 exports.updateProduct = async (req, res, next) => {
   try {
     const { id } = req.params;
-    const { name, slug, price, comparePrice, description, categoryId, brandId, isActive, isNewArrival, isBestSeller, image } = req.body;
+    const { name, slug, price, comparePrice, description, categoryId, brandId, isActive, isNewArrival, isBestSeller, image, clearImage } = req.body;
 
     const updateData = {};
     if (name !== undefined) updateData.name = name;
@@ -174,8 +174,23 @@ exports.updateProduct = async (req, res, next) => {
       data: updateData,
     });
 
+    // Optional: clear the primary product image (deletes the record + Cloudinary asset; promotes any remaining image)
+    if (clearImage === true) {
+      const primary =
+        (await prisma.productImage.findFirst({ where: { productId: id, isPrimary: true } })) ||
+        (await prisma.productImage.findFirst({ where: { productId: id } }));
+      if (primary) {
+        const oldUrl = primary.url;
+        await prisma.productImage.delete({ where: { id: primary.id } });
+        if (oldUrl && oldUrl.includes('res.cloudinary.com')) {
+          destroyByUrl(oldUrl).catch((e) => console.warn('[cloudinary] cleared image cleanup failed:', e.message));
+        }
+        const remaining = await prisma.productImage.findFirst({ where: { productId: id }, orderBy: { position: 'asc' } });
+        if (remaining) await prisma.productImage.update({ where: { id: remaining.id }, data: { isPrimary: true } });
+      }
+    }
     // Optional primary-image replacement (image = new secure URL from Unsplash or Cloudinary)
-    if (image && typeof image === 'string') {
+    else if (image && typeof image === 'string') {
       const oldPrimary =
         (await prisma.productImage.findFirst({ where: { productId: id, isPrimary: true } })) ||
         (await prisma.productImage.findFirst({ where: { productId: id } }));

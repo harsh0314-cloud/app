@@ -136,7 +136,7 @@ export default function ProductList() {
                   <td className="px-4 py-3">
                     <div className="flex items-center gap-3">
                       <div className="relative">
-                        <img src={(editingProduct === product.id && editForm.image) || product.images?.[0]?.url} alt={product.name} className="w-10 h-10 rounded-lg object-cover" />
+                        <img src={editingProduct === product.id ? (editForm.clearImage ? 'https://placehold.co/40x40/e5e5e5/999?text=%E2%80%94' : (editForm.image || product.images?.[0]?.url)) : product.images?.[0]?.url} alt={product.name} className="w-10 h-10 rounded-lg object-cover" />
                         {editingProduct === product.id && (
                           <button
                             type="button"
@@ -237,7 +237,8 @@ export default function ProductList() {
         <ImageReplaceModal
           currentImage={imageModalProduct.images?.[0]?.url}
           onClose={() => setImageModalProduct(null)}
-          onSelect={(url) => setEditForm((f) => ({ ...f, image: url }))}
+          onSelect={(url) => setEditForm((f) => ({ ...f, image: url, clearImage: false }))}
+          onClear={() => { setEditForm((f) => ({ ...f, image: null, clearImage: true })); toast('Image will be removed on Save'); }}
         />
       )}
     </div>
