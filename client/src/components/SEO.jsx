@@ -6,7 +6,8 @@ const SEO = ({
   image, 
   url,
   type = 'website',
-  keywords = ''
+  keywords = '',
+  jsonLd = null
 }) => {
   useEffect(() => {
     // Update document title
@@ -55,11 +56,27 @@ const SEO = ({
       canonical.setAttribute('href', url);
     }
 
+    // JSON-LD structured data (Product / BreadcrumbList / Organization, etc.)
+    const ldScripts = [];
+    if (jsonLd) {
+      const blocks = Array.isArray(jsonLd) ? jsonLd : [jsonLd];
+      blocks.forEach((block) => {
+        if (!block) return;
+        const script = document.createElement('script');
+        script.type = 'application/ld+json';
+        script.setAttribute('data-seo-jsonld', 'true');
+        script.text = JSON.stringify(block);
+        document.head.appendChild(script);
+        ldScripts.push(script);
+      });
+    }
+
     return () => {
       // Reset to homepage defaults on unmount
       document.title = 'StoreX — Luxury Essentials | Premium Clothing & Accessories';
+      ldScripts.forEach((s) => s.parentNode && s.parentNode.removeChild(s));
     };
-  }, [title, description, image, url, type, keywords]);
+  }, [title, description, image, url, type, keywords, jsonLd]);
 
   return null;
 };

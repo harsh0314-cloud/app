@@ -9,6 +9,7 @@ const cookieParser = require('cookie-parser');
 const rateLimit = require('express-rate-limit');
 const { PrismaClient } = require('@prisma/client');
 const errorHandler = require('./src/middleware/errorHandler');
+const { sanitizeBody } = require('./src/middleware/sanitize');
 
 // Import Routes
 const authRoutes = require('./src/routes/authRoutes');
@@ -22,6 +23,7 @@ const wishlistRoutes = require('./src/routes/wishlistRoutes');
 const couponRoutes = require('./src/routes/couponRoutes'); 
 const reviewRoutes = require('./src/routes/reviewRoutes');
 const shippingRoutes = require('./src/routes/shippingRoutes');
+const seoRoutes = require('./src/routes/seoRoutes');
 
 const app = express();
 const prisma = new PrismaClient();
@@ -83,6 +85,9 @@ app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 app.use(cookieParser());
 app.use(compression());
 
+// XSS hardening: sanitize string inputs on all mutating requests (skips password/token fields)
+app.use(sanitizeBody);
+
 if (process.env.NODE_ENV === 'development') {
   app.use(morgan('dev'));
 }
@@ -113,6 +118,7 @@ app.use('/api/wishlist', wishlistRoutes);
 app.use('/api/coupons', couponRoutes); // ADD THIS
 app.use('/api/reviews', reviewRoutes);
 app.use('/api/shipping', shippingRoutes);
+app.use('/api/seo', seoRoutes);
 app.use('*', (req, res) => {
   res.status(404).json({ error: `Route ${req.originalUrl} not found` });
 });

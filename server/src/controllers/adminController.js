@@ -1,5 +1,7 @@
 const { PrismaClient } = require('@prisma/client');
 const { AppError } = require('../utils/AppError');
+const { sendOrderStatusEmail } = require('../utils/email');
+const { destroyByUrl } = require('../utils/cloudinary');
 
 const prisma = new PrismaClient();
 
@@ -153,7 +155,7 @@ exports.createProduct = async (req, res, next) => {
 exports.updateProduct = async (req, res, next) => {
   try {
     const { id } = req.params;
-    const { name, slug, price, comparePrice, description, categoryId, brandId, isActive, isNewArrival, isBestSeller } = req.body;
+    const { name, slug, price, comparePrice, description, categoryId, brandId, isActive, isNewArrival, isBestSeller, image, clearImage } = req.body;
 
     const updateData = {};
     if (name !== undefined) updateData.name = name;
@@ -172,9 +174,48 @@ exports.updateProduct = async (req, res, next) => {
       data: updateData,
     });
 
+    // Optional: clear the primary product image (deletes the record + Cloudinary asset; promotes any remaining image)
+    if (clearImage === true) {
+      const primary =
+        (await prisma.productImage.findFirst({ where: { productId: id, isPrimary: true } })) ||
+        (await prisma.productImage.findFirst({ where: { productId: id } }));
+      if (primary) {
+        const oldUrl = primary.url;
+        await prisma.productImage.delete({ where: { id: primary.id } });
+        if (oldUrl && oldUrl.includes('res.cloudinary.com')) {
+          destroyByUrl(oldUrl).catch((e) => console.warn('[cloudinary] cleared image cleanup failed:', e.message));
+        }
+        const remaining = await prisma.productImage.findFirst({ where: { productId: id }, orderBy: { position: 'asc' } });
+        if (remaining) await prisma.productImage.update({ where: { id: remaining.id }, data: { isPrimary: true } });
+      }
+    }
+    // Optional primary-image replacement (image = new secure URL from Unsplash or Cloudinary)
+    else if (image && typeof image === 'string') {
+      const oldPrimary =
+        (await prisma.productImage.findFirst({ where: { productId: id, isPrimary: true } })) ||
+        (await prisma.productImage.findFirst({ where: { productId: id } }));
+      const oldUrl = oldPrimary?.url;
+
+      if (oldPrimary) {
+        await prisma.productImage.update({ where: { id: oldPrimary.id }, data: { url: image, isPrimary: true } });
+      } else {
+        await prisma.productImage.create({ data: { productId: id, url: image, isPrimary: true } });
+      }
+
+      // Delete the previous asset from Cloudinary ONLY (never touch Unsplash/other URLs), and only if it changed
+      if (oldUrl && oldUrl !== image && oldUrl.includes('res.cloudinary.com')) {
+        destroyByUrl(oldUrl).catch((e) => console.warn('[cloudinary] old image cleanup failed:', e.message));
+      }
+    }
+
+    const fresh = await prisma.product.findUnique({
+      where: { id },
+      include: { images: { orderBy: { isPrimary: 'desc' } } },
+    });
+
     res.status(200).json({
       status: 'success',
-      data: { product },
+      data: { product: fresh || product },
     });
   } catch (error) {
     if (error.code === 'P2025') {
@@ -268,7 +309,7 @@ exports.bulkUpdateInventory = async (req, res, next) => {
     await prisma.$transaction(
       updates.map((update) =>
         prisma.inventory.update({
-          where: { id: update.id },
+          where: update.productId ? { productId: update.productId } : { id: update.id },
           data: {
             quantity: update.quantity !== undefined ? parseInt(update.quantity) : undefined,
             lowStockThreshold: update.lowStockThreshold !== undefined ? parseInt(update.lowStockThreshold) : undefined,
@@ -339,7 +380,29 @@ exports.updateOrderStatus = async (req, res, next) => {
     const order = await prisma.order.update({
       where: { id },
       data: updateData,
+      include: { user: { select: { id: true, email: true, firstName: true } } },
     });
+
+    // In-app notification + transactional email (best-effort, never blocks the response)
+    if (order.userId) {
+      prisma.notification.create({
+        data: {
+          userId: order.userId,
+          title: `Order ${order.orderNumber} ${status.toLowerCase()}`,
+          message: `Your order ${order.orderNumber} status is now ${status}.`,
+          type: 'ORDER',
+          data: { orderId: order.id, status },
+        },
+      }).catch((e) => console.error('[notification] create failed:', e.message));
+    }
+    if (order.user?.email) {
+      sendOrderStatusEmail(order.user.email, {
+        orderNumber: order.orderNumber,
+        status,
+        firstName: order.user.firstName,
+        trackingNumber: order.trackingNumber,
+      }).catch((e) => console.error('[email] order status failed:', e.message));
+    }
 
     res.status(200).json({
       status: 'success',

@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import api from '../../services/api';
 import toast from 'react-hot-toast';
-import { Search, X, Plus } from 'lucide-react';
+import { Search, X, Plus, Upload } from 'lucide-react';
 
 // Unsplash API - no key needed for demo, but for production get one from unsplash.com/developers
 const UNSPLASH_ACCESS_KEY = import.meta.env.VITE_UNSPLASH_ACCESS_KEY || '';
@@ -25,6 +25,38 @@ export default function AddProduct() {
   const [unsplashImages, setUnsplashImages] = useState([]);
   const [searching, setSearching] = useState(false);
   const [selectedImages, setSelectedImages] = useState([]);
+  const [uploading, setUploading] = useState(false);
+
+  // Method 2: Upload local files → Cloudinary → store returned secure URL
+  const handleFileUpload = async (e) => {
+    const files = Array.from(e.target.files || []);
+    if (!files.length) return;
+    if (selectedImages.length + files.length > 5) {
+      toast.error('Maximum 5 images allowed');
+      e.target.value = '';
+      return;
+    }
+    setUploading(true);
+    try {
+      const fd = new FormData();
+      files.forEach((f) => fd.append('images', f));
+      const res = await api.post('/admin/upload', fd);
+      const uploaded = res.data?.images || res.data?.data?.images || [];
+      const mapped = uploaded.map((img) => ({
+        id: img.publicId || img.url,
+        urls: { small: img.url, regular: img.url },
+        alt_description: 'Uploaded image',
+        _cloudinary: true,
+      }));
+      setSelectedImages((prev) => [...prev, ...mapped]);
+      toast.success(`${mapped.length} image(s) uploaded to Cloudinary`);
+    } catch (err) {
+      toast.error(err.response?.data?.message || err.message || 'Upload failed');
+    } finally {
+      setUploading(false);
+      e.target.value = '';
+    }
+  };
 
   // Fetch categories and brands when the page loads
   useEffect(() => {
@@ -37,26 +69,17 @@ export default function AddProduct() {
     if (!searchQuery.trim()) return;
     setSearching(true);
     try {
-      // If no API key, use a fallback demo approach
+      // Without a real Unsplash key, serve curated demo images directly (no wasted request)
       if (!UNSPLASH_ACCESS_KEY) {
-        // Fallback: use curated photos endpoint (no key needed for limited access)
-        const res = await fetch(`https://api.unsplash.com/search/photos?query=${encodeURIComponent(searchQuery)}&per_page=12&client_id=YOUR_ACCESS_KEY`);
-        if (!res.ok) {
-          // If API fails, show demo images
-          setUnsplashImages([
-            { id: 'demo1', urls: { small: 'https://images.unsplash.com/photo-1521572163474-6864f9cf17ab?w=300', regular: 'https://images.unsplash.com/photo-1521572163474-6864f9cf17ab?w=600' }, alt_description: 'T-shirt' },
-            { id: 'demo2', urls: { small: 'https://images.unsplash.com/photo-1618354691373-d851c5c3a990?w=300', regular: 'https://images.unsplash.com/photo-1618354691373-d851c5c3a990?w=600' }, alt_description: 'Clothing' },
-            { id: 'demo3', urls: { small: 'https://images.unsplash.com/photo-1581655353564-df123a1eb820?w=300', regular: 'https://images.unsplash.com/photo-1581655353564-df123a1eb820?w=600' }, alt_description: 'Fashion' },
-            { id: 'demo4', urls: { small: 'https://images.unsplash.com/photo-1562157873-818bc0726f68?w=300', regular: 'https://images.unsplash.com/photo-1562157873-818bc0726f68?w=600' }, alt_description: 'Apparel' },
-            { id: 'demo5', urls: { small: 'https://images.unsplash.com/photo-1576566588028-4147f3842f27?w=300', regular: 'https://images.unsplash.com/photo-1576566588028-4147f3842f27?w=600' }, alt_description: 'Wear' },
-            { id: 'demo6', urls: { small: 'https://images.unsplash.com/photo-1556821840-3a63f95609a7?w=300', regular: 'https://images.unsplash.com/photo-1556821840-3a63f95609a7?w=600' }, alt_description: 'Style' },
-          ]);
-          toast.info('Add your Unsplash API key for real image search. Using demo images for now.');
-          setSearching(false);
-          return;
-        }
-        const data = await res.json();
-        setUnsplashImages(data.results || []);
+        setUnsplashImages([
+          { id: 'demo1', urls: { small: 'https://images.unsplash.com/photo-1521572163474-6864f9cf17ab?w=300', regular: 'https://images.unsplash.com/photo-1521572163474-6864f9cf17ab?w=600' }, alt_description: 'T-shirt' },
+          { id: 'demo2', urls: { small: 'https://images.unsplash.com/photo-1618354691373-d851c5c3a990?w=300', regular: 'https://images.unsplash.com/photo-1618354691373-d851c5c3a990?w=600' }, alt_description: 'Clothing' },
+          { id: 'demo3', urls: { small: 'https://images.unsplash.com/photo-1581655353564-df123a1eb820?w=300', regular: 'https://images.unsplash.com/photo-1581655353564-df123a1eb820?w=600' }, alt_description: 'Fashion' },
+          { id: 'demo4', urls: { small: 'https://images.unsplash.com/photo-1562157873-818bc0726f68?w=300', regular: 'https://images.unsplash.com/photo-1562157873-818bc0726f68?w=600' }, alt_description: 'Apparel' },
+          { id: 'demo5', urls: { small: 'https://images.unsplash.com/photo-1576566588028-4147f3842f27?w=300', regular: 'https://images.unsplash.com/photo-1576566588028-4147f3842f27?w=600' }, alt_description: 'Wear' },
+          { id: 'demo6', urls: { small: 'https://images.unsplash.com/photo-1556821840-3a63f95609a7?w=300', regular: 'https://images.unsplash.com/photo-1556821840-3a63f95609a7?w=600' }, alt_description: 'Style' },
+        ]);
+        toast('Add your Unsplash API key for real image search. Showing demo images.');
       } else {
         const res = await fetch(`https://api.unsplash.com/search/photos?query=${encodeURIComponent(searchQuery)}&per_page=12&client_id=${UNSPLASH_ACCESS_KEY}`);
         const data = await res.json();
@@ -83,9 +106,13 @@ export default function AddProduct() {
     }
   };
 
-  // Remove selected image
+  // Remove selected image (also deletes from Cloudinary if it was uploaded there)
   const removeImage = (imageId) => {
-    setSelectedImages(prev => prev.filter(img => img.id !== imageId));
+    const target = selectedImages.find((img) => img.id === imageId);
+    setSelectedImages((prev) => prev.filter((img) => img.id !== imageId));
+    if (target?._cloudinary && target?.urls?.regular) {
+      api.delete('/admin/upload', { data: { url: target.urls.regular } }).catch((err) => console.warn('[cloudinary] delete failed:', err?.message));
+    }
   };
 
   const handleSubmit = async (e) => {
@@ -176,7 +203,7 @@ export default function AddProduct() {
 
         {/* Image Search Section */}
         <div className="space-y-4">
-          <label className="block text-sm font-medium text-foreground mb-1">Product Images (from Unsplash)</label>
+          <label className="block text-sm font-medium text-foreground mb-1">Product Images (search Unsplash or upload your own)</label>
 
           {/* Search Bar */}
           <div className="flex gap-2">
@@ -200,6 +227,29 @@ export default function AddProduct() {
               {searching ? 'Searching...' : <><Search size={16} /> Search</>}
             </button>
           </div>
+
+          {/* Method 2: Upload from computer → Cloudinary (Unsplash search above still works) */}
+          <div className="flex items-center gap-3">
+            <div className="h-px flex-1 bg-border" />
+            <span className="text-xs text-muted-foreground uppercase tracking-wider">or</span>
+            <div className="h-px flex-1 bg-border" />
+          </div>
+          <label
+            data-testid="upload-image-label"
+            className={`flex items-center justify-center gap-2 w-full px-4 py-3 border-2 border-dashed border-border rounded-xl cursor-pointer hover:border-foreground transition-colors ${uploading ? 'opacity-60 pointer-events-none' : ''}`}
+          >
+            <Upload size={18} />
+            <span className="text-sm font-medium">{uploading ? 'Uploading to Cloudinary...' : 'Upload from your computer'}</span>
+            <input
+              data-testid="upload-image-input"
+              type="file"
+              accept="image/jpeg,image/png,image/webp,image/gif"
+              multiple
+              onChange={handleFileUpload}
+              disabled={uploading}
+              className="hidden"
+            />
+          </label>
 
           {/* Selected Images Preview */}
           {selectedImages.length > 0 && (

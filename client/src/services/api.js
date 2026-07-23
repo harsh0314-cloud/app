@@ -31,6 +31,10 @@ api.interceptors.request.use(
       if (token) {
         config.headers.Authorization = `Bearer ${token}`;
       }
+      // Let the browser set multipart/form-data (with boundary) for file uploads.
+      if (config.data instanceof FormData) {
+        delete config.headers['Content-Type'];
+      }
     } catch {
       console.error("Could not parse auth state");
     }

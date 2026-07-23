@@ -20,7 +20,7 @@ export default function AdminInventory() {
   const fetchInventory = async () => {
     try {
       const res = await api.get('/admin/inventory');
-      const data = Array.isArray(res.data) ? res.data : res.data?.data || [];
+      const data = res.data?.inventory || (Array.isArray(res.data) ? res.data : res.data?.data?.inventory || res.data?.data || []);
       setInventory(data);
     } catch (err) {
       toast.error('Failed to load inventory');
