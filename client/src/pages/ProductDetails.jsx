@@ -94,12 +94,17 @@ export default function ProductDetails() {
   const reviews = product.reviews || [];
   const avgRating = reviews.length ? reviews.reduce((s, r) => s + (r.rating || 0), 0) / reviews.length : 0;
 
-  // Sizes: derive from variants when available, otherwise show default set.
   const sizeVariants = (product.variants || []).filter((v) => (v.name || '').toLowerCase().includes('size'));
   const sizes = sizeVariants.length
     ? sizeVariants.map((v) => ({ label: v.value, stock: v.stock ?? 0 }))
     : DEFAULT_SIZES.map((label) => ({ label, stock: inStock ? null : 0 }));
   const anySizeAvailable = sizes.some((s) => s.stock === null || s.stock > 0);
+
+  // Product-specific size guide (null => hide the Size Guide button)
+  const sizeGuide =
+    product.sizeGuide && Array.isArray(product.sizeGuide.columns) && product.sizeGuide.columns.length && Array.isArray(product.sizeGuide.rows) && product.sizeGuide.rows.length
+      ? product.sizeGuide
+      : null;
 
   const jsonLd = [
     {
@@ -199,7 +204,7 @@ export default function ProductDetails() {
         jsonLd={jsonLd}
       />
 
-      <SizeGuideModal open={sizeGuideOpen} onClose={() => setSizeGuideOpen(false)} />
+      <SizeGuideModal open={sizeGuideOpen} onClose={() => setSizeGuideOpen(false)} sizeGuide={sizeGuide} />
 
       <div className="container-luxe py-14 pb-32 lg:pb-14">
         <button onClick={() => navigate(-1)} className="mb-8 flex items-center gap-2 text-sm text-muted-foreground transition-colors hover:text-foreground">
@@ -239,13 +244,15 @@ export default function ProductDetails() {
             {/* Size selection */}
             <div className="mt-8 flex items-center justify-between">
               <span className="text-[11px] font-semibold uppercase tracking-luxe-sm">Select Size</span>
-              <button
-                onClick={() => setSizeGuideOpen(true)}
-                data-testid="size-guide-open"
-                className="text-xs font-semibold text-foreground underline-offset-4 transition-colors hover:text-gold hover:underline"
-              >
-                Size Guide ›
-              </button>
+              {sizeGuide && (
+                <button
+                  onClick={() => setSizeGuideOpen(true)}
+                  data-testid="size-guide-open"
+                  className="text-xs font-semibold text-foreground underline-offset-4 transition-colors hover:text-gold hover:underline"
+                >
+                  Size Guide ›
+                </button>
+              )}
             </div>
             <SizeSelector sizes={sizes} selected={selectedSize} onSelect={setSelectedSize} />
 

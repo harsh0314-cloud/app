@@ -1,0 +1,30 @@
+{
+  "summary": "Verified per-product Key Highlights + Size Guide feature end-to-end. Backend (7/7 pytest) + Frontend flows (admin login, Add Product page, inline edit + save, product-with-attrs storefront, product-without-attrs hides sections) all pass against the preview URL.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {"ui_bugs": [], "integration_issues": [], "design_issues": []},
+  "test_report_links": [
+    "/app/backend/tests/test_product_attributes.py",
+    "/app/test_reports/pytest/attrs.xml"
+  ],
+  "action_items": [
+    "Optional cleanup: a leftover TEST product ('TEST Attr Product cfc31d19') is visible in admin list from earlier module-scoped fixture teardown; DELETE /api/admin/products/:id returned 204 during tests, so it should be gone now, but recommend a quick verify.",
+    "Optional: client/.env still contains VITE_API_URL=http://localhost:5000/api (dev-only, overridden at runtime with /api). No functional impact.",
+    "Nit: In the Product Details page and Size Guide modal, table headers are uppercased via CSS (e.g. 'FOOT LENGTH (CM)'). Purely visual - data is stored as entered ('Foot Length (cm)'). No fix needed."
+  ],
+  "critical_code_review_comments": [
+    "adminController.createProduct: cleanHighlights = undefined when keyHighlights is omitted (correct), but for updateProduct it stores [] as null via the .filter length check - consistent and expected.",
+    "productController.getProductBySlug returns Prisma Json fields directly - no _id issue since Postgres. Good.",
+    "ProductAttributesEditor is 130 lines - clean and focused. data-testid coverage is comprehensive.",
+    "SizeGuideModal correctly guards with hasData before rendering; ProductDetails correctly hides size-guide-open when product.sizeGuide is null."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_product_attributes.py (new)"
+  ],
+  "success_rate": {"backend": "100%", "frontend": "100%"},
+  "test_credentials": "admin@storex.com / Admin@1234 ; user@storex.com / User@1234",
+  "seed_data_creation": "Module-scoped pytest fixture created and deleted a TEST product with attributes via /api/admin/products",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Feature is fully working. Backend pytest at /app/backend/tests/test_product_attributes.py covers: GET with/without attrs, POST persistence + label filtering, PATCH update, PATCH clear-to-null, cart add-with-size regression. UI verified: (1) /products/air-runner-sneakers-test renders data-testid=key-highlights with Sole Material/Upper Material/Closure/Country of Origin and data-testid=size-guide-open opens data-testid=size-guide-modal with columns UK/US/EU/Foot Length (cm). (2) /products/essential-cotton-tee has neither key-highlights nor size-guide-open in the DOM. (3) /admin/add-product shows product-attributes-editor with add-highlight-row + 3 presets (Clothing/Footwear/Trousers). (4) /admin/products -> click Edit icon (button[title='Edit']) reveals the inline editor; add row + enable Clothing preset + sg-add-row + Save -> 'Product updated' toast, editor closes.",
+  "rca of the issue": "N/A - feature verified working; no bugs found."
+}

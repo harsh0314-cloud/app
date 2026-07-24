@@ -177,6 +177,8 @@ model Product {
   isTrending    Boolean   @default(false)
   metaTitle     String?
   metaDescription String?
+  keyHighlights Json?
+  sizeGuide     Json?
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
 

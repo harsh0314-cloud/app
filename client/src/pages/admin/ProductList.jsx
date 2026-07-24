@@ -1,9 +1,10 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Fragment } from 'react';
 import { Link } from 'react-router-dom';
 import { Trash2, Edit2, Package, Search, Image as ImageIcon } from 'lucide-react';
 import api from '../../services/api';
 import toast from 'react-hot-toast';
 import ImageReplaceModal from '../../components/admin/ImageReplaceModal';
+import ProductAttributesEditor from '../../components/admin/ProductAttributesEditor';
 
 export default function ProductList() {
   const [products, setProducts] = useState([]);
@@ -49,7 +50,9 @@ export default function ProductList() {
       isActive: product.isActive,
       isNewArrival: product.isNewArrival,
       isBestSeller: product.isBestSeller,
-      inventory: product.inventory?.quantity || 0
+      inventory: product.inventory?.quantity || 0,
+      keyHighlights: Array.isArray(product.keyHighlights) ? product.keyHighlights : [],
+      sizeGuide: product.sizeGuide || null
     });
   };
 
@@ -132,7 +135,8 @@ export default function ProductList() {
             </thead>
             <tbody>
               {filteredProducts.map((product) => (
-                <tr key={product.id} className="border-b border-border last:border-0 hover:bg-gray-50 dark:hover:bg-gray-800/50">
+                <Fragment key={product.id}>
+                <tr className="border-b border-border last:border-0 hover:bg-gray-50 dark:hover:bg-gray-800/50">
                   <td className="px-4 py-3">
                     <div className="flex items-center gap-3">
                       <div className="relative">
@@ -227,6 +231,19 @@ export default function ProductList() {
                     </div>
                   </td>
                 </tr>
+                {editingProduct === product.id && (
+                  <tr>
+                    <td colSpan={5} className="px-4 py-5 bg-gray-50 dark:bg-gray-800/40">
+                      <ProductAttributesEditor
+                        highlights={editForm.keyHighlights || []}
+                        onHighlightsChange={(h) => setEditForm((f) => ({ ...f, keyHighlights: h }))}
+                        sizeGuide={editForm.sizeGuide || null}
+                        onSizeGuideChange={(sg) => setEditForm((f) => ({ ...f, sizeGuide: sg }))}
+                      />
+                    </td>
+                  </tr>
+                )}
+                </Fragment>
               ))}
             </tbody>
           </table>

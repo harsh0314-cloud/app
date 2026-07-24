@@ -75,11 +75,19 @@ exports.getAllProducts = async (req, res, next) => {
 
 exports.createProduct = async (req, res, next) => {
   try {
-    const { name, slug, price, comparePrice, description, categoryId, brandId, inventory, images } = req.body;
+    const { name, slug, price, comparePrice, description, categoryId, brandId, inventory, images, keyHighlights, sizeGuide } = req.body;
 
     if (!name || !slug || !price || !categoryId || !brandId) {
       return next(new AppError('Name, slug, price, categoryId, brandId are required', 400));
     }
+
+    const cleanHighlights = Array.isArray(keyHighlights)
+      ? keyHighlights.map((h) => ({ label: h.label || h.name, value: h.value })).filter((h) => h.label && h.value)
+      : undefined;
+    const cleanSizeGuide =
+      sizeGuide && Array.isArray(sizeGuide.columns) && sizeGuide.columns.filter(Boolean).length && Array.isArray(sizeGuide.rows) && sizeGuide.rows.length
+        ? sizeGuide
+        : undefined;
 
     const product = await prisma.$transaction(async (tx) => {
       const newProduct = await tx.product.create({
@@ -95,6 +103,8 @@ exports.createProduct = async (req, res, next) => {
           isActive: true,
           isNewArrival: req.body.isNewArrival || false,
           isBestSeller: req.body.isBestSeller || false,
+          keyHighlights: cleanHighlights,
+          sizeGuide: cleanSizeGuide,
         },
       });
 
@@ -158,7 +168,7 @@ exports.createProduct = async (req, res, next) => {
 exports.updateProduct = async (req, res, next) => {
   try {
     const { id } = req.params;
-    const { name, slug, price, comparePrice, description, categoryId, brandId, isActive, isNewArrival, isBestSeller, image, clearImage } = req.body;
+    const { name, slug, price, comparePrice, description, categoryId, brandId, isActive, isNewArrival, isBestSeller, image, clearImage, keyHighlights, sizeGuide } = req.body;
 
     const updateData = {};
     if (name !== undefined) updateData.name = name;
@@ -171,6 +181,17 @@ exports.updateProduct = async (req, res, next) => {
     if (isActive !== undefined) updateData.isActive = isActive;
     if (isNewArrival !== undefined) updateData.isNewArrival = isNewArrival;
     if (isBestSeller !== undefined) updateData.isBestSeller = isBestSeller;
+    if (keyHighlights !== undefined) {
+      updateData.keyHighlights = Array.isArray(keyHighlights)
+        ? keyHighlights.map((h) => ({ label: h.label || h.name, value: h.value })).filter((h) => h.label && h.value)
+        : null;
+    }
+    if (sizeGuide !== undefined) {
+      updateData.sizeGuide =
+        sizeGuide && Array.isArray(sizeGuide.columns) && sizeGuide.columns.filter(Boolean).length && Array.isArray(sizeGuide.rows) && sizeGuide.rows.length
+          ? sizeGuide
+          : null;
+    }
 
     const product = await prisma.product.update({
       where: { id },
