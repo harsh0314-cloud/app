@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import api from '../../services/api';
 import toast from 'react-hot-toast';
 import { Search, X, Plus, Upload } from 'lucide-react';
+import ProductAttributesEditor from '../../components/admin/ProductAttributesEditor';
 
 // Unsplash API - no key needed for demo, but for production get one from unsplash.com/developers
 const UNSPLASH_ACCESS_KEY = import.meta.env.VITE_UNSPLASH_ACCESS_KEY || '';
@@ -26,6 +27,8 @@ export default function AddProduct() {
   const [searching, setSearching] = useState(false);
   const [selectedImages, setSelectedImages] = useState([]);
   const [uploading, setUploading] = useState(false);
+  const [highlights, setHighlights] = useState([]);
+  const [sizeGuide, setSizeGuide] = useState(null);
 
   // Method 2: Upload local files → Cloudinary → store returned secure URL
   const handleFileUpload = async (e) => {
@@ -130,12 +133,14 @@ export default function AddProduct() {
         isPrimary: idx === 0
       }));
 
-      await api.post('/admin/products', { ...form, images });
+      await api.post('/admin/products', { ...form, images, keyHighlights: highlights, sizeGuide });
       toast.success('Product created successfully!');
       setForm({ name: '', slug: '', price: '', description: '', categoryId: '', brandId: '', images: [] });
       setSelectedImages([]);
       setSearchQuery('');
       setUnsplashImages([]);
+      setHighlights([]);
+      setSizeGuide(null);
     } catch (error) {
       toast.error(error.response?.data?.message || error.message || 'Failed to create product');
     } finally {
@@ -312,6 +317,16 @@ export default function AddProduct() {
               <code className="bg-muted px-1 rounded">VITE_UNSPLASH_ACCESS_KEY=your_key</code>
             </p>
           )}
+        </div>
+
+        {/* Dynamic Key Highlights + Size Guide (product specific) */}
+        <div className="border-t border-border pt-6">
+          <ProductAttributesEditor
+            highlights={highlights}
+            onHighlightsChange={setHighlights}
+            sizeGuide={sizeGuide}
+            onSizeGuideChange={setSizeGuide}
+          />
         </div>
 
         <button type="submit" disabled={loading} className="w-full py-3 bg-foreground text-white rounded-xl font-medium hover:opacity-90 disabled:opacity-50">
