@@ -145,7 +145,7 @@ export default function ProductDetails() {
     if (!requireSize()) return;
     setAdding(true);
     try {
-      await addToCart(product.id, 1);
+      await addToCart(product.id, 1, selectedSize);
       window.dispatchEvent(new Event('open-cart'));
       toast.success(`${product.name} (${selectedSize}) added to bag`);
     } catch {
@@ -159,7 +159,7 @@ export default function ProductDetails() {
     if (!requireSize()) return;
     setBuying(true);
     try {
-      await addToCart(product.id, 1);
+      await addToCart(product.id, 1, selectedSize);
       navigate('/checkout');
     } catch {
       toast.error('Please sign in to continue');

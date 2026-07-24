@@ -32,7 +32,7 @@ exports.getCart = async (req, res, next) => {
 // Add item to cart
 exports.addToCart = async (req, res, next) => {
   try {
-    const { productId, quantity = 1 } = req.body;
+    const { productId, quantity = 1, size = null } = req.body;
 
     if (!productId) {
       return next(new AppError('Product ID is required', 400));
@@ -58,11 +58,13 @@ exports.addToCart = async (req, res, next) => {
       create: { userId: req.user.id },
     });
 
+    // Dedup by product + selected size so different sizes are separate line items.
     const existingItem = await req.prisma.cartItem.findFirst({
       where: {
         cartId: cart.id,
         productId: productId,
-        variantId: null
+        variantId: null,
+        size: size
       }
     });
 
@@ -76,7 +78,8 @@ exports.addToCart = async (req, res, next) => {
         data: {
           cartId: cart.id,
           productId: productId,
-          quantity: quantity
+          quantity: quantity,
+          size: size
         }
       });
     }

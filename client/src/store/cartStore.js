@@ -36,10 +36,10 @@ export const useCartStore = create((set, get) => ({
     }
   },
 
-  addToCart: async (productId, quantity = 1) => {
+  addToCart: async (productId, quantity = 1, size = null) => {
     try {
       await get().ensureSession();
-      await api.post('/cart', { productId, quantity });
+      await api.post('/cart', { productId, quantity, size });
       get().fetchCart();
     } catch (error) {
       console.error("Failed to add to cart", error);

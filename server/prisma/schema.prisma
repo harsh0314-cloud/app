@@ -269,6 +269,7 @@ model CartItem {
   cartId     String
   productId  String
   variantId  String?
+  size       String?
   quantity   Int      @default(1)
   savedForLater Boolean @default(false)
   createdAt  DateTime @default(now())
@@ -337,6 +338,7 @@ model OrderItem {
   orderId     String
   productId   String
   variantId   String?
+  size        String?
   name        String
   image       String?
   price       Decimal  @db.Decimal(10, 2)

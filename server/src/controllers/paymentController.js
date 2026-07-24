@@ -2,6 +2,7 @@ const { calculateOrderTotals } = require('../utils/pricing');
 const razorpay = require('razorpay');
 const crypto = require('crypto');
 const { AppError } = require('../utils/AppError');
+const { sendOrderStatusEmail } = require('../utils/email');
 
 // 1. Create Razorpay Order ID
 exports.createRazorpayOrder = async (req, res, next) => {
@@ -72,6 +73,7 @@ exports.createRazorpayOrder = async (req, res, next) => {
           create: activeItems.map(item => ({
             productId: item.productId,
             name: item.product.name,
+            size: item.size || null,
             image: item.product.images[0]?.url || null,
             price: parseFloat(item.product.price).toFixed(2),
             quantity: item.quantity,
@@ -181,6 +183,17 @@ exports.verifyRazorpayPayment = async (req, res, next) => {
         await tx.cartItem.deleteMany({ where: { cartId: cart.id, savedForLater: false } });
       }
     });
+
+    // Order confirmation email (best-effort; includes selected sizes). Never blocks response.
+    if (req.user?.email) {
+      const emailItems = order.items.map((i) => ({ name: i.name, size: i.size, quantity: i.quantity }));
+      sendOrderStatusEmail(req.user.email, {
+        orderNumber: order.orderNumber,
+        status: 'CONFIRMED',
+        firstName: req.user.firstName,
+        items: emailItems,
+      }).catch((e) => console.error('[email] order confirmation failed:', e.message));
+    }
 
     res.status(200).json({ status: 'success', message: 'Payment verified successfully' });
   } catch (error) {

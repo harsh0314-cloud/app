@@ -91,16 +91,25 @@ const ORDER_STATUS_COPY = {
 };
 
 // Fire-and-forget transactional email for order status changes. No-ops safely if RESEND_API_KEY is unset.
-exports.sendOrderStatusEmail = async (to, { orderNumber, status, firstName = '', trackingNumber } = {}) => {
+exports.sendOrderStatusEmail = async (to, { orderNumber, status, firstName = '', trackingNumber, items } = {}) => {
   const copy = ORDER_STATUS_COPY[status];
   if (!copy) return { skipped: true };
   const link = `${CLIENT_URL}/orders`;
   const tracking = trackingNumber
     ? `<p style="font-size:13px;color:#444;margin-top:8px;">Tracking number: <strong>${trackingNumber}</strong></p>`
     : '';
+  const itemsHtml = (Array.isArray(items) && items.length)
+    ? `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;margin:16px 0;">
+        ${items.map((it) => `<tr>
+          <td style="padding:8px 0;border-bottom:1px solid #eee;font-size:13px;color:#111;">${it.name}${it.size ? ` <span style="color:#888;">(Size: ${it.size})</span>` : ''}</td>
+          <td style="padding:8px 0;border-bottom:1px solid #eee;font-size:13px;color:#666;text-align:right;white-space:nowrap;">Qty ${it.quantity}</td>
+        </tr>`).join('')}
+      </table>`
+    : '';
   const body = `
     <p style="font-size:14px;line-height:1.6;color:#444;">Hi ${firstName || 'there'}, ${copy.line}</p>
     <p style="font-size:13px;color:#444;">Order <strong>${orderNumber}</strong> — status: <strong>${status}</strong></p>
+    ${itemsHtml}
     ${tracking}
     <p style="margin:28px 0;">${button(link, 'View Order')}</p>`;
   return send(to, copy.subject, shell(copy.title, body));
