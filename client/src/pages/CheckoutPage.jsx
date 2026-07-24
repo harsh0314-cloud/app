@@ -225,7 +225,7 @@ export default function CheckoutPage() {
                 <img src={item.product?.images?.[0]?.url} alt={item.product?.name} className="h-16 w-16 rounded-md object-cover" />
                 <div className="flex-1">
                   <p className="text-sm font-medium">{item.product?.name}</p>
-                  <p className="text-xs text-muted-foreground">Qty: {item.quantity}</p>
+                  <p className="text-xs text-muted-foreground">{item.size ? `Size: ${item.size} · ` : ''}Qty: {item.quantity}</p>
                 </div>
                 <p className="text-sm font-semibold">{fmtPrice(parseFloat(item.product?.price) * item.quantity)}</p>
               </div>

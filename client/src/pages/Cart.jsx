@@ -59,6 +59,7 @@ export default function Cart() {
                   <div>
                     <p className="overline text-muted-foreground">{item.product.category?.name}</p>
                     <Link to={`/products/${item.product.slug}`} className="font-display text-lg font-semibold tracking-tight">{item.product.name}</Link>
+                    {item.size && <p className="mt-1 text-xs text-muted-foreground" data-testid={`cart-item-size-${item.id}`}>Size: <span className="font-semibold text-foreground">{item.size}</span></p>}
                   </div>
                   <span className="font-display text-lg font-semibold">{fmtPrice(item.product.price * item.quantity)}</span>
                 </div>
@@ -92,6 +93,7 @@ export default function Cart() {
                       <div>
                         <p className="overline text-muted-foreground">{item.product.category?.name}</p>
                         <Link to={`/products/${item.product.slug}`} className="font-display text-lg font-semibold tracking-tight">{item.product.name}</Link>
+                        {item.size && <p className="mt-1 text-xs text-muted-foreground">Size: <span className="font-semibold text-foreground">{item.size}</span></p>}
                       </div>
                       <span className="font-display text-lg font-semibold">{fmtPrice(item.product.price)}</span>
                     </div>
