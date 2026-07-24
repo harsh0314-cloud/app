@@ -1,7 +1,7 @@
 import { useState, useEffect, Suspense, lazy } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Heart, ArrowLeft, Truck, RotateCcw, ShieldCheck } from 'lucide-react';
+import { Heart, ArrowLeft, Star, ShoppingBag, Zap } from 'lucide-react';
 import api from '../services/api';
 import toast from 'react-hot-toast';
 import SEO from '../components/SEO';
@@ -12,8 +12,18 @@ import ReviewSection from '../components/ReviewSection';
 import { pushRecentlyViewed } from '../hooks/useRecentlyViewed';
 import RecentlyViewed from '../components/RecentlyViewed';
 import useAuthStore from '../store/authStore';
+import ImageGallery from '../components/product/ImageGallery';
+import SizeSelector from '../components/product/SizeSelector';
+import SizeGuideModal from '../components/product/SizeGuideModal';
+import DeliveryChecker from '../components/product/DeliveryChecker';
+import OffersSection from '../components/product/OffersSection';
+import KeyHighlights from '../components/product/KeyHighlights';
+import ProductAccordions from '../components/product/ProductAccordions';
+import StickyMobileBar from '../components/product/StickyMobileBar';
 
 const ProductCard = lazy(() => import('../components/ProductCard'));
+
+const DEFAULT_SIZES = ['S', 'M', 'L', 'XL', 'XXL', 'XXXL'];
 
 export default function ProductDetails() {
   const { slug } = useParams();
@@ -24,21 +34,20 @@ export default function ProductDetails() {
   const [product, setProduct] = useState(null);
   const [related, setRelated] = useState([]);
   const [fbt, setFbt] = useState([]);
-  const [selectedImage, setSelectedImage] = useState(0);
-  const [quantity, setQuantity] = useState(1);
+  const [selectedSize, setSelectedSize] = useState(null);
   const [adding, setAdding] = useState(false);
+  const [buying, setBuying] = useState(false);
   const [addingBundle, setAddingBundle] = useState(false);
   const [loading, setLoading] = useState(true);
-  const [zoom, setZoom] = useState({ active: false, x: 50, y: 50 });
+  const [sizeGuideOpen, setSizeGuideOpen] = useState(false);
 
   useEffect(() => {
     setLoading(true);
-    setSelectedImage(0);
+    setSelectedSize(null);
     api.get(`/products/${slug}`)
       .then((res) => {
         const p = res.data?.product || res.data?.data?.product;
         setProduct(p);
-        // Wire Recently Viewed end-to-end: localStorage for everyone + server persistence for logged-in users
         if (p?.id) {
           pushRecentlyViewed(p);
           if (useAuthStore.getState().user) {
@@ -57,13 +66,18 @@ export default function ProductDetails() {
     return (
       <div className="container-luxe py-24">
         <div className="grid gap-12 lg:grid-cols-2">
-          <div className="aspect-square bg-gray-100 animate-pulse rounded-xl" />
+          <div className="aspect-[4/5] animate-pulse rounded-none bg-surface" />
           <div className="space-y-4">
-            <div className="h-8 bg-gray-100 animate-pulse rounded w-3/4" />
-            <div className="h-6 bg-gray-100 animate-pulse rounded w-1/4" />
-            <div className="h-4 bg-gray-100 animate-pulse rounded w-full" />
-            <div className="h-4 bg-gray-100 animate-pulse rounded w-full" />
-            <div className="h-12 bg-gray-100 animate-pulse rounded w-1/2 mt-8" />
+            <div className="h-4 w-1/4 animate-pulse bg-surface" />
+            <div className="h-8 w-3/4 animate-pulse bg-surface" />
+            <div className="h-6 w-1/3 animate-pulse bg-surface" />
+            <div className="mt-6 h-4 w-full animate-pulse bg-surface" />
+            <div className="h-4 w-full animate-pulse bg-surface" />
+            <div className="mt-8 flex gap-3">
+              {DEFAULT_SIZES.map((s) => <div key={s} className="h-12 w-12 animate-pulse bg-surface" />)}
+            </div>
+            <div className="mt-8 h-14 w-full animate-pulse bg-surface" />
+            <div className="h-14 w-full animate-pulse bg-surface" />
           </div>
         </div>
       </div>
@@ -79,6 +93,13 @@ export default function ProductDetails() {
   const inStock = (product.inventory?.quantity ?? 1) > 0;
   const reviews = product.reviews || [];
   const avgRating = reviews.length ? reviews.reduce((s, r) => s + (r.rating || 0), 0) / reviews.length : 0;
+
+  // Sizes: derive from variants when available, otherwise show default set.
+  const sizeVariants = (product.variants || []).filter((v) => (v.name || '').toLowerCase().includes('size'));
+  const sizes = sizeVariants.length
+    ? sizeVariants.map((v) => ({ label: v.value, stock: v.stock ?? 0 }))
+    : DEFAULT_SIZES.map((label) => ({ label, stock: inStock ? null : 0 }));
+  const anySizeAvailable = sizes.some((s) => s.stock === null || s.stock > 0);
 
   const jsonLd = [
     {
@@ -112,16 +133,38 @@ export default function ProductDetails() {
     },
   ];
 
+  const requireSize = () => {
+    if (!selectedSize) {
+      toast.error('Please select a size');
+      return false;
+    }
+    return true;
+  };
+
   const handleAdd = async () => {
+    if (!requireSize()) return;
     setAdding(true);
     try {
-      await addToCart(product.id, quantity);
+      await addToCart(product.id, 1, selectedSize);
       window.dispatchEvent(new Event('open-cart'));
-      toast.success(`${product.name} added to bag`);
+      toast.success(`${product.name} (${selectedSize}) added to bag`);
     } catch {
       toast.error('Please sign in to add items');
     } finally {
       setAdding(false);
+    }
+  };
+
+  const handleBuyNow = async () => {
+    if (!requireSize()) return;
+    setBuying(true);
+    try {
+      await addToCart(product.id, 1, selectedSize);
+      navigate('/checkout');
+    } catch {
+      toast.error('Please sign in to continue');
+    } finally {
+      setBuying(false);
     }
   };
 
@@ -144,16 +187,9 @@ export default function ProductDetails() {
     }
   };
 
-  const onZoomMove = (e) => {
-    const rect = e.currentTarget.getBoundingClientRect();
-    const x = ((e.clientX - rect.left) / rect.width) * 100;
-    const y = ((e.clientY - rect.top) / rect.height) * 100;
-    setZoom({ active: true, x, y });
-  };
-
   return (
     <>
-      <SEO 
+      <SEO
         title={`${product.name} — StoreX`}
         description={product.description?.substring(0, 160) || `Shop ${product.name} at StoreX. Premium quality, designed in-house.`}
         keywords={`${product.name}, ${product.category?.name}, luxury clothing, StoreX`}
@@ -163,89 +199,93 @@ export default function ProductDetails() {
         jsonLd={jsonLd}
       />
 
-      <div className="container-luxe py-14">
-        <button onClick={() => navigate(-1)} className="mb-8 flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors">
+      <SizeGuideModal open={sizeGuideOpen} onClose={() => setSizeGuideOpen(false)} />
+
+      <div className="container-luxe py-14 pb-32 lg:pb-14">
+        <button onClick={() => navigate(-1)} className="mb-8 flex items-center gap-2 text-sm text-muted-foreground transition-colors hover:text-foreground">
           <ArrowLeft size={16} /> Back
         </button>
 
         <div className="grid gap-12 lg:grid-cols-2">
-          {/* Images */}
-          <div className="space-y-4">
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              onMouseMove={onZoomMove}
-              onMouseEnter={() => setZoom((z) => ({ ...z, active: true }))}
-              onMouseLeave={() => setZoom({ active: false, x: 50, y: 50 })}
-              data-testid="product-zoom-image"
-              className="relative aspect-square overflow-hidden rounded-xl bg-gray-100 cursor-zoom-in"
-            >
-              <img
-                src={product.images?.[selectedImage]?.url}
-                alt={product.name}
-                loading="eager"
-                className="h-full w-full object-cover transition-transform duration-200 ease-out"
-                style={zoom.active ? { transform: 'scale(2)', transformOrigin: `${zoom.x}% ${zoom.y}%` } : { transform: 'scale(1)' }}
-              />
-              {onSale && <span className="absolute left-4 top-4 z-10 bg-sale-red px-3 py-1 text-[10px] font-semibold uppercase tracking-luxe-sm text-white">-{discount}%</span>}
-            </motion.div>
-            {product.images?.length > 1 && (
-              <div className="flex gap-3">
-                {product.images.map((img, i) => (
-                  <button key={i} onClick={() => setSelectedImage(i)} className={`h-20 w-20 overflow-hidden rounded-lg border-2 transition-colors ${selectedImage === i ? 'border-foreground' : 'border-transparent'}`}>
-                    <img src={img.url} alt="" className="h-full w-full object-cover" loading="lazy" />
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
+          {/* Gallery */}
+          <ImageGallery images={product.images || []} name={product.name} discount={discount} onSale={onSale} />
 
           {/* Info */}
-          <div>
-            <p className="overline text-muted-foreground">{product.category?.name}</p>
-            <h1 className="mt-2 font-display text-3xl font-bold tracking-tight md:text-4xl">{product.name}</h1>
-            <div className="mt-4 flex items-baseline gap-3">
-              <span className="font-display text-2xl font-semibold">{fmtPrice(product.price)}</span>
-              {onSale && <span className="text-lg text-muted-foreground line-through">{fmtPrice(product.comparePrice)}</span>}
-            </div>
-            <p className="mt-6 leading-relaxed text-muted-foreground">{product.description}</p>
-
-            {/* Quantity */}
-            <div className="mt-8 flex items-center gap-4">
-              <span className="text-sm font-medium">Quantity</span>
-              <div className="flex items-center border border-border">
-                <button onClick={() => setQuantity(Math.max(1, quantity - 1))} className="px-4 py-2 text-sm hover:bg-surface">-</button>
-                <span className="w-12 text-center text-sm font-semibold">{quantity}</span>
-                <button onClick={() => setQuantity(quantity + 1)} className="px-4 py-2 text-sm hover:bg-surface">+</button>
+          <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}>
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <p className="overline text-muted-foreground">{product.brand?.name || product.category?.name}</p>
+                <h1 className="mt-2 font-display text-3xl font-bold tracking-tight md:text-4xl">{product.name}</h1>
               </div>
+              {reviews.length > 0 && (
+                <div className="mt-1 flex shrink-0 items-center gap-1.5 border border-border px-3 py-1.5" data-testid="rating-badge">
+                  <Star size={14} className="text-gold" style={{ fill: '#C7A86D' }} />
+                  <span className="text-sm font-semibold">{avgRating.toFixed(1)}</span>
+                  <span className="text-xs text-muted-foreground">| {reviews.length}</span>
+                </div>
+              )}
             </div>
+
+            {/* Price */}
+            <div className="mt-5" data-testid="price-section">
+              <div className="flex flex-wrap items-baseline gap-3">
+                <span className="font-display text-3xl font-bold text-foreground">{fmtPrice(product.price)}</span>
+                {onSale && <span className="text-lg text-muted-foreground line-through">{fmtPrice(product.comparePrice)}</span>}
+                {onSale && <span className="text-lg font-bold text-green-600">{discount}% OFF</span>}
+              </div>
+              <p className="mt-1 text-xs text-muted-foreground">Inclusive of all taxes</p>
+            </div>
+
+            {/* Size selection */}
+            <div className="mt-8 flex items-center justify-between">
+              <span className="text-[11px] font-semibold uppercase tracking-luxe-sm">Select Size</span>
+              <button
+                onClick={() => setSizeGuideOpen(true)}
+                data-testid="size-guide-open"
+                className="text-xs font-semibold text-foreground underline-offset-4 transition-colors hover:text-gold hover:underline"
+              >
+                Size Guide ›
+              </button>
+            </div>
+            <SizeSelector sizes={sizes} selected={selectedSize} onSelect={setSelectedSize} />
 
             {/* Actions */}
-            <div className="mt-8 flex gap-4">
-              <button onClick={handleAdd} disabled={adding} className="flex-1 bg-foreground py-4 text-[11px] font-semibold uppercase tracking-luxe-sm text-white transition-opacity hover:opacity-90 disabled:opacity-50">
-                {adding ? 'Adding...' : 'Add to Bag'}
+            <div className="mt-8 flex gap-3">
+              <button
+                onClick={handleAdd}
+                disabled={adding || !anySizeAvailable}
+                data-testid="add-to-bag-btn"
+                className="flex flex-1 items-center justify-center gap-2 border border-foreground py-4 text-[11px] font-semibold uppercase tracking-luxe-sm text-foreground transition-colors hover:bg-foreground hover:text-white disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                <ShoppingBag size={16} /> {adding ? 'Adding…' : anySizeAvailable ? 'Add to Bag' : 'Out of Stock'}
               </button>
-              <button onClick={handleWish} className="flex h-[52px] w-[52px] items-center justify-center border border-border transition-colors hover:bg-surface">
-                <Heart size={20} className={wished ? 'fill-red-500 text-red-500' : ''} />
+              <button
+                onClick={handleWish}
+                data-testid="wishlist-btn"
+                aria-label={wished ? 'Remove from wishlist' : 'Add to wishlist'}
+                className="flex h-[54px] w-[54px] shrink-0 items-center justify-center border border-border transition-colors hover:bg-surface"
+              >
+                <motion.span whileTap={{ scale: 0.8 }} transition={{ type: 'spring', stiffness: 400, damping: 15 }}>
+                  <Heart size={20} className={wished ? 'fill-red-500 text-red-500' : ''} />
+                </motion.span>
               </button>
             </div>
+            <button
+              onClick={handleBuyNow}
+              disabled={buying || !anySizeAvailable}
+              data-testid="buy-now-btn"
+              className="mt-3 flex w-full items-center justify-center gap-2 bg-foreground py-4 text-[11px] font-semibold uppercase tracking-luxe-sm text-white transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              <Zap size={16} /> {buying ? 'Please wait…' : 'Buy Now'}
+            </button>
 
-            {/* Trust */}
-            <div className="mt-8 grid grid-cols-3 gap-4 border-t border-border pt-8">
-              {[
-                { icon: Truck, label: 'Free Shipping', desc: 'Over ₹500' },
-                { icon: RotateCcw, label: 'Easy Returns', desc: '30 days' },
-                { icon: ShieldCheck, label: 'Secure', desc: 'SSL Checkout' },
-              ].map((item) => (
-                <div key={item.label} className="text-center">
-                  <item.icon size={20} className="mx-auto mb-2 text-muted-foreground" />
-                  <p className="text-xs font-semibold">{item.label}</p>
-                  <p className="text-[10px] text-muted-foreground">{item.desc}</p>
-                </div>
-              ))}
-            </div>
-          </div>
+            <DeliveryChecker />
+            <OffersSection />
+          </motion.div>
         </div>
+
+        <KeyHighlights product={product} />
+        <ProductAccordions product={product} />
 
         <ReviewSection productId={product.id} />
 
@@ -296,7 +336,7 @@ export default function ProductDetails() {
           <div className="mt-24">
             <h2 className="font-display text-2xl font-bold tracking-tight">You May Also Like</h2>
             <div className="mt-8 grid grid-cols-2 gap-6 md:grid-cols-4">
-              <Suspense fallback={<div className="aspect-[4/5] bg-gray-100 animate-pulse rounded-lg" />}>
+              <Suspense fallback={<div className="aspect-[4/5] animate-pulse rounded-lg bg-surface" />}>
                 {related.map((p, i) => (
                   <ProductCard key={p.id} product={p} index={i} />
                 ))}
@@ -307,6 +347,17 @@ export default function ProductDetails() {
 
         <RecentlyViewed excludeId={product.id} />
       </div>
+
+      <StickyMobileBar
+        price={product.price}
+        comparePrice={product.comparePrice}
+        onSale={onSale}
+        onAddToBag={handleAdd}
+        onBuyNow={handleBuyNow}
+        adding={adding}
+        buying={buying}
+        disabled={!anySizeAvailable}
+      />
     </>
   );
 }

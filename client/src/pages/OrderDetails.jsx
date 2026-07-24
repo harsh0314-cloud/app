@@ -209,6 +209,7 @@ export default function OrderDetails() {
                     <img src={item.image} className="w-16 h-16 object-cover rounded-lg bg-muted" />
                     <div className="flex-1">
                       <p className="font-medium text-foreground">{item.name}</p>
+                      {item.size && <p className="text-sm text-muted-foreground" data-testid={`order-item-size-${item.id}`}>Size: <span className="font-semibold text-foreground">{item.size}</span></p>}
                       <p className="text-sm text-muted-foreground">Qty: {item.quantity} x ₹{parseFloat(item.price).toFixed(2)}</p>
                     </div>
                     <p className="font-medium text-foreground">₹{parseFloat(item.subtotal).toFixed(2)}</p>

@@ -1,5 +1,6 @@
 const { calculateOrderTotals } = require('../utils/pricing');
 const { AppError } = require('../utils/AppError');
+const { sendOrderStatusEmail } = require('../utils/email');
 const PDFDocument = require('pdfkit');
 
 const money = (v) => `INR ${parseFloat(v || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
@@ -72,7 +73,7 @@ exports.generateInvoice = async (req, res, next) => {
     doc.font('Helvetica').fontSize(9).fillColor(INK);
     order.items.forEach((it) => {
       doc.fillColor(INK)
-        .text(it.name, 58, y + 8, { width: 260 })
+        .text(it.size ? `${it.name}  (Size: ${it.size})` : it.name, 58, y + 8, { width: 260 })
         .text(String(it.quantity), 330, y + 8)
         .text(money(it.price), 380, y + 8, { width: 70, align: 'right' })
         .text(money(it.subtotal), 460, y + 8, { width: 78, align: 'right' });
@@ -182,6 +183,7 @@ exports.createOrder = async (req, res, next) => {
               create: activeItems.map(item => ({
               productId: item.productId,
               name: item.product.name,
+              size: item.size || null,
               image: item.product.images[0]?.url || null,
               price: parseFloat(item.product.price).toFixed(2),
               quantity: item.quantity,
@@ -208,6 +210,17 @@ exports.createOrder = async (req, res, next) => {
       await tx.cartItem.deleteMany({ where: { cartId: cart.id, savedForLater: false } });
       return newOrder;
     });
+
+    // Order confirmation email (best-effort; includes selected sizes). Never blocks response.
+    if (req.user?.email) {
+      const emailItems = activeItems.map((i) => ({ name: i.product.name, size: i.size, quantity: i.quantity }));
+      sendOrderStatusEmail(req.user.email, {
+        orderNumber: order.orderNumber,
+        status: 'CONFIRMED',
+        firstName: req.user.firstName,
+        items: emailItems,
+      }).catch((e) => console.error('[email] order confirmation failed:', e.message));
+    }
 
     res.status(201).json({ status: 'success', data: { order } });
   } catch (error) {

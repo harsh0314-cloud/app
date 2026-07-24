@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Star, MessageSquare, User } from 'lucide-react';
+import { Star, MessageSquare, User, BadgeCheck } from 'lucide-react';
 import api from '../services/api';
 import toast from 'react-hot-toast';
 
@@ -145,12 +145,17 @@ function ReviewItem({ review, onDelete }) {
             <User size={18} className="text-muted-foreground" />
           </div>
           <div>
-            <p className="font-medium text-sm">
+            <p className="flex items-center gap-1.5 font-medium text-sm">
               {review.user?.firstName && review.user?.lastName 
                 ? `${review.user.firstName} ${review.user.lastName}`
                 : review.user?.firstName 
                   ? review.user.firstName 
                   : 'Anonymous'}
+              {review.isVerified && (
+                <span className="inline-flex items-center gap-0.5 text-[10px] font-semibold text-green-600" data-testid="verified-buyer-badge">
+                  <BadgeCheck size={12} /> Verified Buyer
+                </span>
+              )}
             </p>
             <p className="text-xs text-muted-foreground">
               {new Date(review.createdAt).toLocaleDateString('en-US', {
@@ -168,6 +173,20 @@ function ReviewItem({ review, onDelete }) {
         <p className="mt-3 text-sm leading-relaxed text-foreground/80">
           {review.comment}
         </p>
+      )}
+
+      {Array.isArray(review.images) && review.images.length > 0 && (
+        <div className="mt-3 flex flex-wrap gap-2" data-testid="review-images">
+          {review.images.map((img, i) => (
+            <img
+              key={i}
+              src={typeof img === 'string' ? img : img.url}
+              alt="Review"
+              className="h-16 w-16 rounded-md object-cover"
+              loading="lazy"
+            />
+          ))}
+        </div>
       )}
 
       {isOwner && (
@@ -294,4 +313,4 @@ export default function ReviewSection({ productId }) {
       </div>
     </section>
   );
-}
+} 
