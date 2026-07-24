@@ -98,16 +98,19 @@ exports.createProduct = async (req, res, next) => {
         },
       });
 
-      // Create inventory
-      if (inventory) {
-        await tx.inventory.create({
-          data: {
-            productId: newProduct.id,
-            quantity: parseInt(inventory.quantity) || 0,
-            lowStockThreshold: parseInt(inventory.lowStockThreshold) || 5,
-          },
-        });
-      }
+      // Always create an inventory record so the product appears in Admin Inventory.
+      // Uses sensible defaults when no inventory payload is provided.
+      await tx.inventory.create({
+        data: {
+          productId: newProduct.id,
+          quantity: inventory && inventory.quantity !== undefined ? parseInt(inventory.quantity) || 0 : 0,
+          lowStockThreshold:
+            inventory && inventory.lowStockThreshold !== undefined
+              ? parseInt(inventory.lowStockThreshold) || 10
+              : 10,
+          trackInventory: true,
+        },
+      });
 
       // Create images - safely handle with or without position field
       if (images && images.length > 0) {
@@ -248,6 +251,24 @@ exports.deleteProduct = async (req, res, next) => {
 // ─── INVENTORY ──────────────────────────────────────────────────────
 exports.getAllInventory = async (req, res, next) => {
   try {
+    // Backfill: ensure every product has an inventory record so none are hidden.
+    const productsMissingInventory = await prisma.product.findMany({
+      where: { inventory: null },
+      select: { id: true },
+    });
+
+    if (productsMissingInventory.length > 0) {
+      await prisma.inventory.createMany({
+        data: productsMissingInventory.map((p) => ({
+          productId: p.id,
+          quantity: 0,
+          lowStockThreshold: 10,
+          trackInventory: true,
+        })),
+        skipDuplicates: true,
+      });
+    }
+
     const inventory = await prisma.inventory.findMany({
       include: {
         product: {
