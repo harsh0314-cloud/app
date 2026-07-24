@@ -1,0 +1,45 @@
+{
+  "summary": "Iteration 6 — Cart & Checkout new features (Shipping Estimator, Save-for-Later, Guest Checkout) tested end-to-end. Added /app/backend/tests/test_cart_checkout_features.py (12 tests, 12/12 PASS). Regression /app/tests/backend_test.py + test_auth_new + test_payment_hardening + test_orders_lifecycle + test_discovery (71/71 PASS). UI validated: guest visits product page (no /login bounce), Add-to-Bag transparently creates guest session, /cart shows item, save-for-later moves item into Saved section, move-to-bag returns it, checkout-btn disabled when active items = 0, shipping-pincode+estimate-btn shows shipping-result 'Free shipping · Metro / 2–4 business days' for 110001+total>500, /checkout shows guest-checkout-banner + guest-email input; COD submit called PATCH /auth/guest-details, POST /orders, and navigated to /payment/success?orderId=… (order CONFIRMED).",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "GET /api/cart (immediately after POST /api/auth/guest + POST /api/cart)", "issue": "Occasional 409 'A record with this value already exists.' from cart.create race (fetchCart runs concurrently with the first add). Cart still ends up correct after retry/fetchCart call. Consider using prisma.cart.upsert or catching P2002 in getCart to make first-visit idempotent."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_cart_checkout_features.py",
+    "/app/test_reports/pytest/iteration_6_features.xml",
+    "/app/test_reports/pytest/regression_it6.xml"
+  ],
+  "action_items": [
+    "(Minor, non-blocking) Harden getCart against concurrent first-time create — wrap prisma.cart.create in try/catch of P2002 and re-read, or use upsert. Users may see a transient 'Failed to fetch cart' console error on first Add-to-Bag as a fresh guest.",
+    "(Carry-over from it5) axios interceptor at /app/ecommerce-platform/client/src/services/api.js:99-102 still redirects on ANY 401 including public helper calls (canReview) — currently causes 2 harmless console errors on product page as guest, but does not bounce anymore because the calls happen after mount and the interceptor allow-list appears to have been widened."
+  ],
+  "critical_code_review_comments": [
+    "shippingRoutes.js: correctly returns 400 for non-6-digit input (post regex strip), zone/eta/free logic matches spec exactly. Metro prefixes ['11','40','56','60','70','50','20','38'].",
+    "orderController.createOrder: correctly filters activeItems = items.filter(!savedForLater); returns 400 when activeItems.length === 0 with clear message; cartItem.deleteMany scoped to savedForLater:false so saved items are preserved after order — verified in test_order_skips_saved_items_and_retains.",
+    "paymentController createRazorpayOrder mirrors the same activeItems filter (not tested end-to-end here to avoid real payment).",
+    "authController.updateGuestDetails: silently ignores email if already taken (per spec) — verified. Non-guest calling this endpoint gets no-op success. Note: PATCH does not validate email format; consider adding Joi validation for consistency.",
+    "cartStore.ensureSession: reads token from localStorage 'auth-storage'.state.token, POSTs /auth/guest, then writes token/refreshToken/user to both zustand store and localStorage — correct.",
+    "Cart.jsx: all required data-testids present (save-later-<id>, saved-for-later, move-to-bag-<id>, shipping-pincode, shipping-estimate-btn, shipping-result, checkout-btn). Checkout button disables correctly on items.length===0.",
+    "CheckoutPage.jsx: guest-checkout-banner + required guest-email render only when user.isGuest; handleSubmit sends PATCH /auth/guest-details before POST /orders for guests — correct."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_cart_checkout_features.py (NEW)"
+  ],
+  "success_rate": {
+    "backend": "100% (12/12 new + 71/71 regression = 83/83)",
+    "frontend": "100% (guest flow, save-for-later, shipping estimator, guest COD checkout all verified)"
+  },
+  "test_credentials": "user@storex.com / User@1234 ; admin@storex.com / Admin@1234",
+  "seed_data_creation": "test_order_skips_saved_items_and_retains creates 1 confirmed COD order for the USER account. test_guest_add_to_cart_and_cod_order creates guest users + confirmed orders. Guests are anonymous and safe to leave.",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Cart-checkout iteration is complete. Order create payload requires FLAT address fields (firstName,lastName,phone,addressLine1,city,state,postalCode,country) and paymentMethod must be 'CASH_ON_DELIVERY' or 'RAZORPAY' (enum), NOT 'COD'. Frontend CheckoutPage maps 'COD' UI selection -> 'CASH_ON_DELIVERY' in payload. Guest flow: POST /api/auth/guest -> use token -> POST /api/cart -> PATCH /api/auth/guest-details -> POST /api/orders. Response envelope is {status,data} unwrapped by axios interceptor to res.data.",
+  "rca_of_the_issue": "N/A — all iteration-6 features pass. Only minor observation: transient 409 on first-time guest cart creation due to concurrent cart.create in getCart while addToCart also creates via upsert. Non-blocking as UI recovers on next fetchCart."
+}

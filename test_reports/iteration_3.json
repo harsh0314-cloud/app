@@ -1,0 +1,42 @@
+{
+  "summary": "Payment-hardening validation (iteration 3). Wrote /app/backend/tests/test_payment_hardening.py (10 pytest cases) covering: verify-razorpay idempotency + inventory decrement once, invalid signature 400, webhook missing/invalid signature 400, webhook valid confirm + double-fire idempotency, Invoice PDF for owner/admin/non-owner/unauthenticated, COD back-to-back regression. 9/10 tests PASS. 1 FAIL: webhook valid-signature path is BROKEN — signature verifies fine but the handler crashes on req.prisma.order.findUnique because the express middleware `req.prisma = prisma` is registered AFTER the webhook route. The controller's try/catch swallows the error and still returns 200, so Razorpay would receive success while the order never confirms and inventory never decrements. Frontend Invoice download flow verified end-to-end in real browser: download-invoice-btn returns application/pdf, 2247 bytes, starts with %PDF. All prior-iteration regression coverage (auth + products + cart + wishlist + coupon + Razorpay create-order + reviews + admin RBAC + new-auth suite) remains green.",
+  "backend_issues": {
+    "critical": [
+      {"endpoint": "POST /api/payments/webhook", "issue": "req.prisma is undefined inside handleWebhook -> TypeError: Cannot read properties of undefined (reading 'order') at paymentController.js:211. Root cause: index.js registers the webhook route (line 74) BEFORE the `req.prisma = prisma` middleware (line 88-91). Signature verification succeeds (uses crypto, not prisma), then the DB lookup throws; catch block returns 200 OK, so a real Razorpay `payment.captured` event would NEVER confirm the order or decrement inventory. This defeats the entire purpose of the webhook hardening feature.", "priority": "CRITICAL"}
+    ],
+    "minor": [
+      {"endpoint": "POST /api/payments/webhook", "issue": "Catch block returns HTTP 200 on ALL errors (paymentController.js:252-253). This masks failures from monitoring and from Razorpay's retry mechanism. Should return 500 (or at least log-and-return-500) so Razorpay retries."},
+      {"endpoint": "POST /api/orders (CASH_ON_DELIVERY)", "issue": "Previously-flagged flaky 404 is GONE. 3 back-to-back COD orders + coupon WELCOME10 all returned 201 in this run — updateMany fix appears to have resolved it."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_payment_hardening.py",
+    "/app/test_reports/pytest/payment_hardening.xml"
+  ],
+  "action_items": [
+    "CRITICAL: In /app/ecommerce-platform/server/index.js, move the `app.use((req,res,next)=>{req.prisma=prisma;next();})` middleware to BEFORE the webhook route registration (i.e. before line 74). Alternatively, import prisma directly inside paymentController.handleWebhook and stop depending on req.prisma there. Then re-run test_webhook_valid_confirms_and_is_idempotent.",
+    "Consider surfacing webhook errors as 500 (not silent 200) so Razorpay retries on transient failures."
+  ],
+  "critical_code_review_comments": [
+    "index.js orders matter: webhook route is registered ABOVE the `req.prisma = prisma` middleware — any DB call inside handleWebhook throws TypeError. The verify-razorpay path works only because that route is mounted via `app.use('/api/payments', paymentRoutes)` further down, AFTER the prisma middleware.",
+    "paymentController.handleWebhook silently returns 200 on any error (lines 251-253). Razorpay treats 200 as final delivery and will NOT retry — combined with the prisma bug this means genuine capture events are permanently lost. At minimum, log AND return 500.",
+    "paymentController.verifyRazorpayPayment idempotency logic is solid: OR-filter on transactionId+orderId AND the order.status==='CONFIRMED' short-circuit correctly prevent double payment rows AND double inventory decrement (validated: inv decremented from N to N-1 across TWO verify calls with the same signature).",
+    "orderController.generateInvoice uses whereClause correctly — admin bypasses userId filter, non-admin restricted to their own; non-owner correctly gets 404 (not 403, which prevents order-ID enumeration — good).",
+    "Router order in orderRoutes.js correctly places `/:id/invoice` BEFORE `/:id` — otherwise `invoice` would be treated as an order id."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_payment_hardening.py (NEW)"
+  ],
+  "success_rate": {"backend": "90% (9/10 new payment-hardening tests; full regression from iteration_2 still green)", "frontend": "100% (invoice download button verified end-to-end in browser: application/pdf, 2247 B, valid %PDF)"},
+  "test_credentials": "user@storex.com / User@1234 ; admin@storex.com / Admin@1234 ; RAZORPAY_KEY_SECRET=gCgfL7A44B6P6zUo4bxaakhQ ; WEBHOOK_SECRET=whsec_storex_local_test_secret_9f2b",
+  "seed_data_creation": "Each run creates 1 TEST_owner_<ts>@example.com user (non-owner invoice test), a few PENDING razorpay orders (from verify + webhook tests), and 3 CONFIRMED COD orders (regression). Inventory reduced by a few units on the top-stock product.",
+  "retest_needed": true,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "1) Webhook route is mounted in /app/ecommerce-platform/server/index.js:74 BEFORE express.json AND before the prisma-attach middleware — that's the root cause of the current webhook failure. 2) Morgan is registered AFTER the webhook route, so webhook requests DO NOT appear in ecom_server.out.log — check ecom_server.err.log for `WEBHOOK ERROR:` lines to debug. 3) pytest.ini has `-n 2 --dist loadscope` by default; the payment-hardening tests are single-module so they still run on one worker (LoadScopeScheduling). If you need strict serial run, use `-n 0`. 4) Fresh razorpay orders can be created without hitting real Razorpay API: /api/payments/create-razorpay-order calls Razorpay TEST-mode and returns real order_id + internal orderId. Signatures for verify = HMAC_SHA256(razorpay_order_id + '|' + razorpay_payment_id, RAZORPAY_KEY_SECRET). Webhook signature = HMAC_SHA256(raw_body, RAZORPAY_WEBHOOK_SECRET). 5) Order confirmation status can be checked via GET /api/orders/:id.",
+  "rca_of_the_issue": "WEBHOOK BUG RCA — File: /app/ecommerce-platform/server/index.js. Line 74 mounts POST /api/payments/webhook. Line 88-91 mounts `app.use((req,res,next)=>{req.prisma=prisma;next();})`. Because Express middleware runs in registration order, requests to /api/payments/webhook never get req.prisma attached. handleWebhook (paymentController.js:211) then calls `req.prisma.order.findUnique(...)` -> TypeError. The catch at line 251 sends back HTTP 200 without logging via morgan (also registered later). Reproduction: sign a payment.captured event with WEBHOOK_SECRET, POST to /api/payments/webhook with x-razorpay-signature header -> response 200 but order status stays PENDING and inventory unchanged. Mitigation options: (a) move prisma-attach middleware above line 74; (b) `const { prisma } = require('./src/db')` inside paymentController and use directly; (c) inline `req.prisma = prisma` in a mini-middleware chained specifically for the webhook route: `app.post('/api/payments/webhook', express.raw(...), (req,_,n)=>{req.prisma=prisma; n();}, paymentController.handleWebhook)`. After fix, re-run: `pytest /app/backend/tests/test_payment_hardening.py::test_webhook_valid_confirms_and_is_idempotent -v -n 0`."
+}
