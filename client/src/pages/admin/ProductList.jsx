@@ -52,7 +52,12 @@ export default function ProductList() {
       isBestSeller: product.isBestSeller,
       inventory: product.inventory?.quantity || 0,
       keyHighlights: Array.isArray(product.keyHighlights) ? product.keyHighlights : [],
-      sizeGuide: product.sizeGuide || null
+      sizeGuide: product.sizeGuide || null,
+      isReturnable: product.isReturnable !== false,
+      isExchangeable: product.isExchangeable !== false,
+      returnWindowDays: product.returnWindowDays ?? 15,
+      returnPolicy: product.returnPolicy || '',
+      exchangePolicy: product.exchangePolicy || '',
     });
   };
 
@@ -233,13 +238,40 @@ export default function ProductList() {
                 </tr>
                 {editingProduct === product.id && (
                   <tr>
-                    <td colSpan={5} className="px-4 py-5 bg-gray-50 dark:bg-gray-800/40">
+                    <td colSpan={5} className="px-4 py-5 bg-gray-50 dark:bg-gray-800/40 space-y-5">
                       <ProductAttributesEditor
                         highlights={editForm.keyHighlights || []}
                         onHighlightsChange={(h) => setEditForm((f) => ({ ...f, keyHighlights: h }))}
                         sizeGuide={editForm.sizeGuide || null}
                         onSizeGuideChange={(sg) => setEditForm((f) => ({ ...f, sizeGuide: sg }))}
                       />
+                      <div className="border-t border-border pt-5 space-y-3" data-testid={`edit-rx-${product.id}`}>
+                        <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Returns &amp; Exchanges</p>
+                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                          <label className="flex items-center gap-2 text-xs">
+                            <input type="checkbox" checked={!!editForm.isReturnable} onChange={(e) => setEditForm({ ...editForm, isReturnable: e.target.checked })} data-testid={`edit-returnable-${product.id}`}/>
+                            Returnable
+                          </label>
+                          <label className="flex items-center gap-2 text-xs">
+                            <input type="checkbox" checked={!!editForm.isExchangeable} onChange={(e) => setEditForm({ ...editForm, isExchangeable: e.target.checked })} data-testid={`edit-exchangeable-${product.id}`}/>
+                            Exchangeable
+                          </label>
+                          <label className="text-xs text-muted-foreground">
+                            <span className="block">Return window (days)</span>
+                            <input type="number" min="1" max="180" value={editForm.returnWindowDays ?? 15} onChange={(e) => setEditForm({ ...editForm, returnWindowDays: e.target.value })} data-testid={`edit-window-${product.id}`} className="mt-1 w-24 px-2 py-1 border border-border rounded text-sm"/>
+                          </label>
+                        </div>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                          <label className="text-xs text-muted-foreground">
+                            <span className="block mb-1">Return policy</span>
+                            <textarea rows={2} value={editForm.returnPolicy || ''} onChange={(e) => setEditForm({ ...editForm, returnPolicy: e.target.value })} data-testid={`edit-return-policy-${product.id}`} className="w-full px-3 py-2 border border-border rounded text-sm"/>
+                          </label>
+                          <label className="text-xs text-muted-foreground">
+                            <span className="block mb-1">Exchange policy</span>
+                            <textarea rows={2} value={editForm.exchangePolicy || ''} onChange={(e) => setEditForm({ ...editForm, exchangePolicy: e.target.value })} data-testid={`edit-exchange-policy-${product.id}`} className="w-full px-3 py-2 border border-border rounded text-sm"/>
+                          </label>
+                        </div>
+                      </div>
                     </td>
                   </tr>
                 )}

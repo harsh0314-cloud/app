@@ -33,6 +33,9 @@ const Wishlist = lazy(() => import('./pages/Wishlist'));
 const ForgotPassword = lazy(() => import('./pages/ForgotPassword'));
 const ResetPassword = lazy(() => import('./pages/ResetPassword'));
 const VerifyEmail = lazy(() => import('./pages/VerifyEmail'));
+const ReturnRequestForm = lazy(() => import('./pages/ReturnRequestForm'));
+const MyReturns = lazy(() => import('./pages/MyReturns'));
+const ReturnDetails = lazy(() => import('./pages/ReturnDetails'));
 
 function ScrollToTop() {
   const { pathname } = useLocation();
@@ -74,6 +77,9 @@ function AnimatedRoutes() {
             <Route path="/verify-email" element={<Page><VerifyEmail /></Page>} />
             <Route path="/orders" element={<Page><Orders /></Page>} />
             <Route path="/orders/:id" element={<Page><OrderDetails /></Page>} />
+            <Route path="/orders/:orderId/return" element={<Page><ReturnRequestForm /></Page>} />
+            <Route path="/returns" element={<Page><MyReturns /></Page>} />
+            <Route path="/returns/:id" element={<Page><ReturnDetails /></Page>} />
             <Route path="/profile" element={<Page><Profile /></Page>} />
             <Route path="/payment/success" element={<PaymentSuccess />} />
             <Route path="/payment/cancel" element={<Page><PaymentCancel /></Page>} />

@@ -15,7 +15,12 @@ export default function AddProduct() {
     description: '', 
     categoryId: '', 
     brandId: '',
-    images: []
+    images: [],
+    isReturnable: true,
+    isExchangeable: true,
+    returnWindowDays: 15,
+    returnPolicy: '',
+    exchangePolicy: '',
   });
   const [loading, setLoading] = useState(false);
   const [categories, setCategories] = useState([]);
@@ -135,7 +140,7 @@ export default function AddProduct() {
 
       await api.post('/admin/products', { ...form, images, keyHighlights: highlights, sizeGuide });
       toast.success('Product created successfully!');
-      setForm({ name: '', slug: '', price: '', description: '', categoryId: '', brandId: '', images: [] });
+      setForm({ name: '', slug: '', price: '', description: '', categoryId: '', brandId: '', images: [], isReturnable: true, isExchangeable: true, returnWindowDays: 15, returnPolicy: '', exchangePolicy: '' });
       setSelectedImages([]);
       setSearchQuery('');
       setUnsplashImages([]);
@@ -327,6 +332,33 @@ export default function AddProduct() {
             sizeGuide={sizeGuide}
             onSizeGuideChange={setSizeGuide}
           />
+        </div>
+
+        {/* Returns & Exchanges policy */}
+        <div className="border-t border-border pt-6 space-y-4" data-testid="rx-policy-block">
+          <h3 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">Returns &amp; Exchanges</h3>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <label className="flex items-center gap-2 border border-border rounded-xl px-4 py-3 cursor-pointer">
+              <input type="checkbox" checked={form.isReturnable} onChange={(e) => setForm({ ...form, isReturnable: e.target.checked })} className="accent-black" data-testid="rx-returnable"/>
+              <span className="text-sm">Returnable</span>
+            </label>
+            <label className="flex items-center gap-2 border border-border rounded-xl px-4 py-3 cursor-pointer">
+              <input type="checkbox" checked={form.isExchangeable} onChange={(e) => setForm({ ...form, isExchangeable: e.target.checked })} className="accent-black" data-testid="rx-exchangeable"/>
+              <span className="text-sm">Exchangeable</span>
+            </label>
+            <label className="text-xs text-muted-foreground">
+              <span className="block mb-1">Return window (days)</span>
+              <input type="number" min="1" max="180" value={form.returnWindowDays} onChange={(e) => setForm({ ...form, returnWindowDays: e.target.value })} data-testid="rx-window" className="w-full border border-border rounded-xl px-4 py-2.5 text-sm bg-muted"/>
+            </label>
+          </div>
+          <label className="block">
+            <span className="block text-sm font-medium text-foreground mb-1">Return policy (shown on request page)</span>
+            <textarea rows={2} value={form.returnPolicy} onChange={(e) => setForm({ ...form, returnPolicy: e.target.value })} data-testid="rx-return-policy" className="w-full px-4 py-2.5 bg-muted border border-border rounded-xl text-sm" placeholder="e.g. Item must be unused with original tags."/>
+          </label>
+          <label className="block">
+            <span className="block text-sm font-medium text-foreground mb-1">Exchange policy</span>
+            <textarea rows={2} value={form.exchangePolicy} onChange={(e) => setForm({ ...form, exchangePolicy: e.target.value })} data-testid="rx-exchange-policy" className="w-full px-4 py-2.5 bg-muted border border-border rounded-xl text-sm" placeholder="e.g. Free size exchange within the return window."/>
+          </label>
         </div>
 
         <button type="submit" disabled={loading} className="w-full py-3 bg-foreground text-white rounded-xl font-medium hover:opacity-90 disabled:opacity-50">

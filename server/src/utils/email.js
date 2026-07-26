@@ -114,3 +114,50 @@ exports.sendOrderStatusEmail = async (to, { orderNumber, status, firstName = '',
     <p style="margin:28px 0;">${button(link, 'View Order')}</p>`;
   return send(to, copy.subject, shell(copy.title, body));
 };
+
+// ─── Returns & Exchanges ──────────────────────────────────────────────
+const RETURN_STATUS_COPY = {
+  PENDING:          { subject: 'We received your return request',  title: 'Return request received', line: 'Thanks — we\'ve received your request and our team is reviewing it.' },
+  APPROVED:         { subject: 'Your return request is approved',  title: 'Request approved',       line: 'Good news — your request has been approved. We\'ll schedule the pickup shortly.' },
+  REJECTED:         { subject: 'Update on your return request',    title: 'Request declined',       line: 'Unfortunately your request could not be approved. See details below.' },
+  PICKUP_SCHEDULED: { subject: 'Your pickup has been scheduled',   title: 'Pickup scheduled',       line: 'Your pickup is scheduled. Please keep the item ready and packed.' },
+  PICKED_UP:        { subject: 'Your item has been picked up',     title: 'Picked up',              line: 'We\'ve collected your item. Our quality check will begin shortly.' },
+  REFUND_PROCESSED: { subject: 'Your refund is processed',         title: 'Refund processed',       line: 'Your refund has been processed. It may take a few days to reflect in your account.' },
+  EXCHANGE_SHIPPED: { subject: 'Your replacement has shipped',     title: 'Exchange shipped',       line: 'Your replacement item is on its way!' },
+  COMPLETED:        { subject: 'Your return has been completed',   title: 'Request completed',      line: 'Your request is now complete. Thanks for shopping with StoreX.' },
+  CANCELLED:        { subject: 'Your return request was cancelled',title: 'Request cancelled',      line: 'Your request has been cancelled as requested.' },
+};
+
+exports.sendReturnStatusEmail = async (to, {
+  requestId,
+  orderNumber,
+  status,
+  firstName = '',
+  type = 'RETURN',
+  refundAmount,
+  refundMethod,
+  pickupScheduledAt,
+  exchangeTrackingNumber,
+  adminNote,
+} = {}) => {
+  const copy = RETURN_STATUS_COPY[status];
+  if (!copy) return { skipped: true };
+  const link = `${CLIENT_URL}/returns/${requestId || ''}`;
+  const noun = type === 'EXCHANGE' ? 'exchange' : 'return';
+  const rows = [
+    orderNumber ? `<tr><td style="padding:6px 0;color:#666;font-size:13px;">Order</td><td style="padding:6px 0;font-size:13px;text-align:right;"><strong>${orderNumber}</strong></td></tr>` : '',
+    `<tr><td style="padding:6px 0;color:#666;font-size:13px;">Type</td><td style="padding:6px 0;font-size:13px;text-align:right;"><strong>${type}</strong></td></tr>`,
+    `<tr><td style="padding:6px 0;color:#666;font-size:13px;">Status</td><td style="padding:6px 0;font-size:13px;text-align:right;"><strong>${status.replace(/_/g, ' ')}</strong></td></tr>`,
+    refundAmount ? `<tr><td style="padding:6px 0;color:#666;font-size:13px;">Refund</td><td style="padding:6px 0;font-size:13px;text-align:right;"><strong>₹${parseFloat(refundAmount).toFixed(2)}${refundMethod ? ' · ' + refundMethod.replace(/_/g, ' ') : ''}</strong></td></tr>` : '',
+    pickupScheduledAt ? `<tr><td style="padding:6px 0;color:#666;font-size:13px;">Pickup on</td><td style="padding:6px 0;font-size:13px;text-align:right;"><strong>${new Date(pickupScheduledAt).toLocaleString('en-IN')}</strong></td></tr>` : '',
+    exchangeTrackingNumber ? `<tr><td style="padding:6px 0;color:#666;font-size:13px;">Tracking</td><td style="padding:6px 0;font-size:13px;text-align:right;"><strong>${exchangeTrackingNumber}</strong></td></tr>` : '',
+  ].filter(Boolean).join('');
+  const noteHtml = adminNote
+    ? `<p style="font-size:12px;color:#666;margin-top:8px;font-style:italic;">Note from our team: ${adminNote}</p>` : '';
+  const body = `
+    <p style="font-size:14px;line-height:1.6;color:#444;">Hi ${firstName || 'there'}, ${copy.line.replace('return', noun)}</p>
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;margin:12px 0 4px;">${rows}</table>
+    ${noteHtml}
+    <p style="margin:28px 0;">${button(link, 'Track Request')}</p>`;
+  return send(to, copy.subject, shell(copy.title, body));
+};

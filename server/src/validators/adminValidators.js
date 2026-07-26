@@ -11,12 +11,22 @@ const productCreateSchema = z.object({
   price: priceLike,
   categoryId: z.string().min(1, 'Category is required'),
   brandId: z.string().min(1, 'Brand is required'),
+  isReturnable: z.boolean().optional(),
+  isExchangeable: z.boolean().optional(),
+  returnWindowDays: z.union([z.string(), z.number()]).optional(),
+  returnPolicy: z.string().max(4000).optional().nullable(),
+  exchangePolicy: z.string().max(4000).optional().nullable(),
 }).passthrough();
 
 const productUpdateSchema = z.object({
   name: z.string().min(1).optional(),
   slug: z.string().min(1).optional(),
   price: priceLike.optional(),
+  isReturnable: z.boolean().optional(),
+  isExchangeable: z.boolean().optional(),
+  returnWindowDays: z.union([z.string(), z.number()]).optional(),
+  returnPolicy: z.string().max(4000).optional().nullable(),
+  exchangePolicy: z.string().max(4000).optional().nullable(),
 }).passthrough();
 
 const uploadDeleteSchema = z.object({

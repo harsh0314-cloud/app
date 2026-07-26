@@ -3,6 +3,7 @@ const router = express.Router();
 const adminController = require('../controllers/adminController');
 const analyticsController = require('../controllers/analyticsController');
 const uploadController = require('../controllers/uploadController');
+const returnController = require('../controllers/returnController');
 const { authenticate } = require('../middleware/auth');
 const { authorize } = require('../middleware/rbac'); 
 const { validate } = require('../middleware/validate');
@@ -42,8 +43,10 @@ router.get('/orders/export', analyticsController.exportOrdersCsv);
 router.patch('/orders/:id/status', adminController.updateOrderStatus);
 
 // --- RETURNS / EXCHANGES ---
-router.get('/returns', adminController.getAllReturns);
-router.patch('/returns/:id', adminController.updateReturnRequest);
+router.get('/returns/stats', returnController.adminStats);
+router.get('/returns', returnController.adminListReturns);
+router.get('/returns/:id', returnController.adminGetReturn);
+router.patch('/returns/:id', returnController.adminUpdateReturn);
 
 // --- CUSTOMERS ---
 router.get('/customers', adminController.getAllCustomers);

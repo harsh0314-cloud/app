@@ -331,7 +331,9 @@ exports.cancelOrder = async (req, res, next) => {
   }
 };
 
-// Request a return or exchange (owner). Allowed after delivery.
+// Request a return or exchange (owner). Legacy endpoint — kept for backward compatibility.
+// The primary Returns & Exchanges flow now lives at POST /api/returns (per-item, images, timeline).
+// When called without an items[] payload we auto-cover every item in the delivered order.
 exports.createReturnRequest = async (req, res, next) => {
   try {
     const { type = 'RETURN', reason } = req.body;
@@ -340,18 +342,53 @@ exports.createReturnRequest = async (req, res, next) => {
 
     const order = await req.prisma.order.findFirst({
       where: { id: req.params.id, userId: req.user.id },
-      include: { returnRequests: true },
+      include: {
+        items: { include: { product: { select: { id: true, isReturnable: true, isExchangeable: true, returnWindowDays: true } } } },
+        returnRequests: { include: { items: true } },
+      },
     });
     if (!order) return next(new AppError('Order not found', 404));
     if (order.status !== 'DELIVERED') {
       return next(new AppError('Returns/exchanges are only available for delivered orders.', 400));
     }
 
-    const openRequest = order.returnRequests.find((r) => ['REQUESTED', 'APPROVED'].includes(r.status));
+    const openRequest = order.returnRequests.find((r) =>
+      ['PENDING', 'REQUESTED', 'APPROVED', 'PICKUP_SCHEDULED', 'PICKED_UP'].includes(r.status)
+    );
     if (openRequest) return next(new AppError('An active request already exists for this order.', 400));
 
+    // Auto-build items[] covering every order item that is still returnable/exchangeable.
+    const itemsToInclude = order.items.filter((oi) => {
+      const p = oi.product;
+      if (type === 'RETURN' && !p?.isReturnable) return false;
+      if (type === 'EXCHANGE' && !p?.isExchangeable) return false;
+      return true;
+    });
+    if (itemsToInclude.length === 0) return next(new AppError('No eligible items in this order.', 400));
+
+    const refundEstimate = itemsToInclude.reduce((s, oi) => s + parseFloat(oi.price) * oi.quantity, 0);
+
     const request = await req.prisma.returnRequest.create({
-      data: { orderId: order.id, userId: req.user.id, type, reason: reason.trim(), status: 'REQUESTED' },
+      data: {
+        orderId: order.id,
+        userId: req.user.id,
+        type,
+        reason: reason.trim(),
+        status: 'PENDING',
+        refundAmount: type === 'RETURN' ? refundEstimate.toFixed(2) : null,
+        refundMethod: type === 'RETURN' ? 'ORIGINAL' : null,
+        items: {
+          create: itemsToInclude.map((oi) => ({ orderItemId: oi.id, quantity: oi.quantity })),
+        },
+        history: {
+          create: {
+            status: 'PENDING',
+            note: 'Request submitted (legacy endpoint)',
+            changedBy: req.user.id,
+            changedByRole: 'USER',
+          },
+        },
+      },
     });
 
     res.status(201).json({ status: 'success', data: { request }, message: `${type === 'EXCHANGE' ? 'Exchange' : 'Return'} requested` });

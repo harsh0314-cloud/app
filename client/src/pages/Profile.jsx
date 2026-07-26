@@ -7,7 +7,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { 
   LayoutDashboard, Package, Heart, MapPin, Tag, Trophy, 
   Star, Move, Bell, Settings, LogOut, User, ChevronRight, Edit3, Lock,
-  ShoppingCart, Trash2
+  ShoppingCart, Trash2, RotateCcw
 } from 'lucide-react';
 import useAuthStore from '../store/authStore';
 import { useCartStore } from '../store/cartStore';
@@ -31,6 +31,7 @@ const passwordSchema = z.object({
 const sidebarLinks = [
   { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
   { id: 'orders', label: 'My Orders', icon: Package },
+  { id: 'returns', label: 'Returns & Exchanges', icon: RotateCcw },
   { id: 'wishlist', label: 'Wishlist', icon: Heart },
   { id: 'addresses', label: 'Addresses', icon: MapPin },
   { id: 'coupons', label: 'Coupons', icon: Tag },
@@ -525,6 +526,17 @@ export default function Profile() {
                     />
                   )}
                   {activeTab === 'orders' && <OrdersTab orders={orders} loading={loading} navigate={navigate} />}
+                  {activeTab === 'returns' && (
+                    <div>
+                      <SectionTitle>Returns &amp; Exchanges</SectionTitle>
+                      <div className="p-4 rounded-xl border border-border bg-muted/30 mb-4 flex items-center justify-between">
+                        <p className="text-sm text-muted-foreground">Track every return and exchange, view refund status and pickup timelines.</p>
+                        <button onClick={() => navigate('/returns')} className="border border-foreground px-4 py-2 text-[11px] font-semibold uppercase tracking-luxe-sm hover:bg-foreground hover:text-white transition-colors">
+                          Open Returns
+                        </button>
+                      </div>
+                    </div>
+                  )}
                   {activeTab === 'wishlist' && (
                     <WishlistTab 
                       wishlist={wishlist} 

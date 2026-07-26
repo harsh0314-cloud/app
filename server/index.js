@@ -24,6 +24,7 @@ const couponRoutes = require('./src/routes/couponRoutes');
 const reviewRoutes = require('./src/routes/reviewRoutes');
 const shippingRoutes = require('./src/routes/shippingRoutes');
 const seoRoutes = require('./src/routes/seoRoutes');
+const returnRoutes = require('./src/routes/returnRoutes');
 
 const app = express();
 const prisma = new PrismaClient();
@@ -119,6 +120,7 @@ app.use('/api/coupons', couponRoutes); // ADD THIS
 app.use('/api/reviews', reviewRoutes);
 app.use('/api/shipping', shippingRoutes);
 app.use('/api/seo', seoRoutes);
+app.use('/api/returns', returnRoutes);
 app.use('*', (req, res) => {
   res.status(404).json({ error: `Route ${req.originalUrl} not found` });
 });

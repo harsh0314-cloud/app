@@ -1,9 +1,10 @@
 import { useState, useEffect, useCallback } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, MapPin, Download, XCircle, RotateCcw, CheckCircle2, Clock, Package, Truck, Home } from 'lucide-react';
+import { useParams, useNavigate, Link } from 'react-router-dom';
+import { ArrowLeft, MapPin, Download, XCircle, RotateCcw, CheckCircle2, Clock, Package, Truck, Home, ArrowRight } from 'lucide-react';
 import api from '../services/api';
 import toast from 'react-hot-toast';
 import useAuthStore from '../store/authStore';
+import { STATUS_BADGE, STATUS_LABEL } from '../lib/returnStatus';
 
 const TRACK_STEPS = [
   { key: 'PENDING', label: 'Placed', icon: Clock },
@@ -54,20 +55,26 @@ export default function OrderDetails() {
   const navigate = useNavigate();
   const { user } = useAuthStore();
   const [order, setOrder] = useState(null);
+  const [eligibility, setEligibility] = useState(null); // per-item eligibility array
   const [loading, setLoading] = useState(true);
   const [downloading, setDownloading] = useState(false);
   const [acting, setActing] = useState(false);
-  const [showReturn, setShowReturn] = useState(false);
-  const [returnType, setReturnType] = useState('RETURN');
-  const [reason, setReason] = useState('');
 
-  const load = useCallback(() => {
+  const load = useCallback(async () => {
     setLoading(true);
-    api.get(`/orders/${id}`)
-      .then((res) => setOrder(res.data.order))
-      .catch(() => toast.error('Failed to load order'))
-      .finally(() => setLoading(false));
-  }, [id]);
+    try {
+      const res = await api.get(`/orders/${id}`);
+      setOrder(res.data.order);
+      // Only pull return eligibility for delivered orders (owner only).
+      if (res.data.order?.status === 'DELIVERED' && user?.role !== 'ADMIN') {
+        try {
+          const el = await api.get(`/returns/eligibility/${id}`);
+          setEligibility(el.data.items || []);
+        } catch { /* non-fatal — customer just won't see the granular buttons */ }
+      }
+    } catch { toast.error('Failed to load order'); }
+    finally { setLoading(false); }
+  }, [id, user?.role]);
 
   useEffect(() => { load(); }, [load]);
 
@@ -100,30 +107,18 @@ export default function OrderDetails() {
     } finally { setActing(false); }
   };
 
-  const handleReturn = async (e) => {
-    e.preventDefault();
-    if (!reason.trim()) { toast.error('Please provide a reason'); return; }
-    setActing(true);
-    try {
-      await api.post(`/orders/${id}/return`, { type: returnType, reason });
-      toast.success(`${returnType === 'EXCHANGE' ? 'Exchange' : 'Return'} requested`);
-      setShowReturn(false);
-      setReason('');
-      load();
-    } catch (e2) {
-      toast.error(e2.message || 'Failed to submit request');
-    } finally { setActing(false); }
-  };
-
   if (loading) return <div className="max-w-4xl mx-auto px-4 py-16 text-center">Loading order...</div>;
   if (!order) return <div className="text-center py-20">Order not found</div>;
 
   const isAdmin = user?.role === 'ADMIN';
   const canCancel = ['PENDING', 'CONFIRMED', 'PROCESSING'].includes(order.status);
   const canReturn = order.status === 'DELIVERED';
-  const openReturn = (order.returnRequests || []).find((r) => ['REQUESTED', 'APPROVED'].includes(r.status));
-  const latestReturn = (order.returnRequests || [])[0];
+  const openRequests = (order.returnRequests || []).filter((r) => !['CANCELLED', 'REJECTED', 'COMPLETED'].includes(r.status));
+  const anyItemEligible = (eligibility || []).some((i) => i.isReturnable || i.isExchangeable);
   const isRefunded = order.payment?.status === 'REFUNDED' || order.status === 'REFUNDED';
+
+  // Merge eligibility into displayed order items (only for owner + delivered).
+  const eligibilityById = new Map((eligibility || []).map((e) => [e.orderItemId, e]));
 
   return (
     <div className="max-w-4xl mx-auto px-4 py-12">
@@ -153,7 +148,7 @@ export default function OrderDetails() {
           <OrderTracking order={order} />
 
           {/* Post-purchase actions */}
-          {!isAdmin && (canCancel || canReturn || latestReturn || isRefunded) && (
+          {!isAdmin && (canCancel || canReturn || openRequests.length || isRefunded) && (
             <div className="mb-8 rounded-xl border border-border p-5">
               <div className="flex flex-wrap items-center gap-3">
                 {canCancel && (
@@ -161,10 +156,10 @@ export default function OrderDetails() {
                     <XCircle size={15} /> Cancel Order
                   </button>
                 )}
-                {canReturn && !openReturn && (
-                  <button onClick={() => setShowReturn((v) => !v)} data-testid="return-order-btn" className="inline-flex items-center gap-2 rounded-lg border border-foreground px-4 py-2.5 text-xs font-semibold uppercase tracking-wide transition-colors hover:bg-foreground hover:text-white">
+                {canReturn && anyItemEligible && (
+                  <Link to={`/orders/${id}/return`} data-testid="return-order-btn" className="inline-flex items-center gap-2 rounded-lg border border-foreground px-4 py-2.5 text-xs font-semibold uppercase tracking-wide transition-colors hover:bg-foreground hover:text-white">
                     <RotateCcw size={15} /> Return / Exchange
-                  </button>
+                  </Link>
                 )}
                 {isRefunded && (
                   <span data-testid="refund-badge" className="inline-flex items-center gap-2 rounded-lg bg-green-100 px-4 py-2.5 text-xs font-semibold uppercase tracking-wide text-green-700">
@@ -173,29 +168,26 @@ export default function OrderDetails() {
                 )}
               </div>
 
-              {latestReturn && (
-                <div data-testid="return-status" className="mt-4 rounded-lg bg-muted/50 p-4 text-sm">
-                  <p className="font-medium text-foreground">{latestReturn.type === 'EXCHANGE' ? 'Exchange' : 'Return'} request — <span className="uppercase">{latestReturn.status}</span></p>
-                  <p className="text-muted-foreground mt-1">Reason: {latestReturn.reason}</p>
-                  {latestReturn.refundAmount && <p className="text-green-700 mt-1">Refund: ₹{parseFloat(latestReturn.refundAmount).toFixed(2)}</p>}
-                  {latestReturn.adminNote && <p className="text-muted-foreground mt-1 italic">Note: {latestReturn.adminNote}</p>}
+              {/* Existing requests summary */}
+              {openRequests.length > 0 && (
+                <div className="mt-4 space-y-2" data-testid="return-status">
+                  {openRequests.map((r) => (
+                    <Link to={`/returns/${r.id}`} key={r.id} className="flex items-center justify-between rounded-lg bg-muted/40 hover:bg-muted transition-colors p-3">
+                      <div>
+                        <p className="text-sm font-medium text-foreground">{r.type === 'EXCHANGE' ? 'Exchange' : 'Return'} request</p>
+                        <p className="text-xs text-muted-foreground">Reason: {r.reason}{r.refundAmount ? ` · Refund ₹${parseFloat(r.refundAmount).toFixed(2)}` : ''}</p>
+                      </div>
+                      <div className="flex items-center gap-3">
+                        <span className={`inline-flex px-2.5 py-1 rounded-full text-[11px] font-semibold ${STATUS_BADGE[r.status] || 'bg-gray-100 text-gray-700'}`}>{STATUS_LABEL[r.status] || r.status}</span>
+                        <ArrowRight size={14} className="text-muted-foreground"/>
+                      </div>
+                    </Link>
+                  ))}
                 </div>
               )}
 
-              {showReturn && (
-                <form onSubmit={handleReturn} data-testid="return-form" className="mt-4 space-y-3 border-t border-border pt-4">
-                  <div className="flex gap-3">
-                    {['RETURN', 'EXCHANGE'].map((t) => (
-                      <button key={t} type="button" onClick={() => setReturnType(t)} className={`flex-1 rounded-lg border px-3 py-2 text-xs font-semibold uppercase ${returnType === t ? 'border-foreground bg-foreground text-white' : 'border-border'}`}>
-                        {t === 'RETURN' ? 'Return' : 'Exchange'}
-                      </button>
-                    ))}
-                  </div>
-                  <textarea value={reason} onChange={(e) => setReason(e.target.value)} data-testid="return-reason" placeholder="Tell us why…" rows={3} className="w-full rounded-lg border border-border bg-transparent p-3 text-sm focus:border-foreground focus:ring-0" />
-                  <button type="submit" disabled={acting} data-testid="return-submit" className="w-full rounded-lg bg-foreground py-3 text-xs font-semibold uppercase tracking-wide text-white disabled:opacity-50">
-                    {acting ? 'Submitting…' : 'Submit Request'}
-                  </button>
-                </form>
+              {canReturn && !anyItemEligible && eligibility && (
+                <p className="mt-4 text-xs text-muted-foreground">All items in this order are already requested or the return window has closed.</p>
               )}
             </div>
           )}
@@ -204,17 +196,31 @@ export default function OrderDetails() {
             <div>
               <h3 className="font-bold text-foreground mb-4">Items Ordered</h3>
               <div className="space-y-4">
-                {order.items.map((item) => (
-                  <div key={item.id} className="flex gap-4 pb-4 border-b border-border last:border-0">
-                    <img src={item.image} className="w-16 h-16 object-cover rounded-lg bg-muted" />
-                    <div className="flex-1">
-                      <p className="font-medium text-foreground">{item.name}</p>
-                      {item.size && <p className="text-sm text-muted-foreground" data-testid={`order-item-size-${item.id}`}>Size: <span className="font-semibold text-foreground">{item.size}</span></p>}
-                      <p className="text-sm text-muted-foreground">Qty: {item.quantity} x ₹{parseFloat(item.price).toFixed(2)}</p>
+                {order.items.map((item) => {
+                  const el = eligibilityById.get(item.id);
+                  return (
+                    <div key={item.id} className="flex gap-4 pb-4 border-b border-border last:border-0">
+                      <img src={item.image} className="w-16 h-16 object-cover rounded-lg bg-muted" />
+                      <div className="flex-1">
+                        <p className="font-medium text-foreground">{item.name}</p>
+                        {item.size && <p className="text-sm text-muted-foreground" data-testid={`order-item-size-${item.id}`}>Size: <span className="font-semibold text-foreground">{item.size}</span></p>}
+                        <p className="text-sm text-muted-foreground">Qty: {item.quantity} x ₹{parseFloat(item.price).toFixed(2)}</p>
+                        {el && !isAdmin && (
+                          <div className="mt-1 text-[11px]">
+                            {el.isReturnable || el.isExchangeable ? (
+                              <Link to={`/orders/${id}/return`} data-testid={`item-return-link-${item.id}`} className="inline-flex items-center gap-1 text-foreground hover:underline">
+                                <RotateCcw size={12}/> {el.isReturnable && el.isExchangeable ? 'Return / Exchange' : el.isReturnable ? 'Return' : 'Exchange'}
+                              </Link>
+                            ) : el.reasonIfBlocked ? (
+                              <span className="text-muted-foreground italic">{el.reasonIfBlocked}</span>
+                            ) : null}
+                          </div>
+                        )}
+                      </div>
+                      <p className="font-medium text-foreground">₹{parseFloat(item.subtotal).toFixed(2)}</p>
                     </div>
-                    <p className="font-medium text-foreground">₹{parseFloat(item.subtotal).toFixed(2)}</p>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             </div>
 

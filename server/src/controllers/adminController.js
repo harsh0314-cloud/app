@@ -89,6 +89,17 @@ exports.createProduct = async (req, res, next) => {
         ? sizeGuide
         : undefined;
 
+    // Optional Returns & Exchanges policy fields (fall back to sensible defaults on the schema).
+    const rxFields = {};
+    if (req.body.isReturnable !== undefined)   rxFields.isReturnable   = Boolean(req.body.isReturnable);
+    if (req.body.isExchangeable !== undefined) rxFields.isExchangeable = Boolean(req.body.isExchangeable);
+    if (req.body.returnWindowDays !== undefined) {
+      const n = parseInt(req.body.returnWindowDays);
+      if (!isNaN(n) && n > 0) rxFields.returnWindowDays = n;
+    }
+    if (req.body.returnPolicy !== undefined)   rxFields.returnPolicy   = req.body.returnPolicy || null;
+    if (req.body.exchangePolicy !== undefined) rxFields.exchangePolicy = req.body.exchangePolicy || null;
+
     const product = await prisma.$transaction(async (tx) => {
       const newProduct = await tx.product.create({
         data: {
@@ -105,6 +116,7 @@ exports.createProduct = async (req, res, next) => {
           isBestSeller: req.body.isBestSeller || false,
           keyHighlights: cleanHighlights,
           sizeGuide: cleanSizeGuide,
+          ...rxFields,
         },
       });
 
@@ -192,6 +204,16 @@ exports.updateProduct = async (req, res, next) => {
           ? sizeGuide
           : null;
     }
+
+    // Returns & Exchanges policy fields
+    if (req.body.isReturnable !== undefined)   updateData.isReturnable   = Boolean(req.body.isReturnable);
+    if (req.body.isExchangeable !== undefined) updateData.isExchangeable = Boolean(req.body.isExchangeable);
+    if (req.body.returnWindowDays !== undefined) {
+      const n = parseInt(req.body.returnWindowDays);
+      if (!isNaN(n) && n > 0) updateData.returnWindowDays = n;
+    }
+    if (req.body.returnPolicy !== undefined)   updateData.returnPolicy   = req.body.returnPolicy || null;
+    if (req.body.exchangePolicy !== undefined) updateData.exchangePolicy = req.body.exchangePolicy || null;
 
     const product = await prisma.product.update({
       where: { id },

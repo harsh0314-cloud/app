@@ -41,30 +41,33 @@ enum CouponType {
 }
 
 model User {
-  id            String    @id @default(uuid())
-  email         String    @unique
+  id            String   @id @default(uuid())
+  email         String   @unique
   password      String?
   firstName     String?
   lastName      String?
   phone         String?
   avatar        String?
-  role          UserRole  @default(USER)
-  isVerified    Boolean   @default(false)
-  isActive      Boolean   @default(true)
-  isGuest       Boolean   @default(false)
-  googleId      String?   @unique
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
+  role          UserRole @default(USER)
+  isVerified    Boolean  @default(false)
+  isActive      Boolean  @default(true)
+  isGuest       Boolean  @default(false)
+  googleId      String?  @unique
+  walletBalance Decimal  @default(0) @db.Decimal(10, 2)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
 
-  addresses     Address[]
-  cart          Cart?
-  wishlist      Wishlist[]
-  orders        Order[]
-  reviews       Review[]
-  sessions      Session[]
-  notifications Notification[]
+  addresses          Address[]
+  cart               Cart?
+  wishlist           Wishlist[]
+  orders             Order[]
+  reviews            Review[]
+  sessions           Session[]
+  notifications      Notification[]
   verificationTokens VerificationToken[]
-    
+  returnRequests     ReturnRequest[]
+  walletTransactions WalletTransaction[]
+
   @@index([email])
   @@index([role])
   @@map("users")
@@ -87,24 +90,24 @@ model Session {
 }
 
 model Address {
-  id          String  @id @default(uuid())
-  userId      String
-  label       String?
-  firstName   String
-  lastName    String
-  phone       String
+  id           String   @id @default(uuid())
+  userId       String
+  label        String?
+  firstName    String
+  lastName     String
+  phone        String
   addressLine1 String
   addressLine2 String?
-  city        String
-  state       String
-  postalCode  String
-  country     String
-  isDefault   Boolean @default(false)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  city         String
+  state        String
+  postalCode   String
+  country      String
+  isDefault    Boolean  @default(false)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
 
-  user    User   @relation(fields: [userId], references: [id], onDelete: Cascade)
-  orders  Order[]
+  user   User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  orders Order[]
 
   @@index([userId])
   @@map("addresses")
@@ -125,19 +128,19 @@ model VerificationToken {
 }
 
 model Category {
-  id          String    @id @default(uuid())
+  id          String   @id @default(uuid())
   name        String
-  slug        String    @unique
+  slug        String   @unique
   description String?
   image       String?
   parentId    String?
-  isActive    Boolean   @default(true)
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 
-  parent      Category?       @relation("CategoryHierarchy", fields: [parentId], references: [id])
-  children    Category[]      @relation("CategoryHierarchy")
-  products    Product[]
+  parent   Category?  @relation("CategoryHierarchy", fields: [parentId], references: [id])
+  children Category[] @relation("CategoryHierarchy")
+  products Product[]
 
   @@index([slug])
   @@index([parentId])
@@ -145,14 +148,14 @@ model Category {
 }
 
 model Brand {
-  id        String   @id @default(uuid())
-  name      String   @unique
-  slug      String   @unique
-  logo      String?
+  id          String   @id @default(uuid())
+  name        String   @unique
+  slug        String   @unique
+  logo        String?
   description String?
-  isActive  Boolean  @default(true)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 
   products Product[]
 
@@ -161,39 +164,44 @@ model Brand {
 }
 
 model Product {
-  id            String    @id @default(uuid())
-  name          String
-  slug          String    @unique
-  description   String?
+  id               String   @id @default(uuid())
+  name             String
+  slug             String   @unique
+  description      String?
   shortDescription String?
-  sku           String    @unique
-  price         Decimal   @db.Decimal(10, 2)
-  comparePrice  Decimal?  @db.Decimal(10, 2)
-  costPrice     Decimal?  @db.Decimal(10, 2)
-  isActive      Boolean   @default(true)
-  isFeatured    Boolean   @default(false)
-  isNewArrival  Boolean   @default(false)
-  isBestSeller  Boolean   @default(false)
-  isTrending    Boolean   @default(false)
-  metaTitle     String?
-  metaDescription String?
-  keyHighlights Json?
-  sizeGuide     Json?
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
+  sku              String   @unique
+  price            Decimal  @db.Decimal(10, 2)
+  comparePrice     Decimal? @db.Decimal(10, 2)
+  costPrice        Decimal? @db.Decimal(10, 2)
+  isActive         Boolean  @default(true)
+  isFeatured       Boolean  @default(false)
+  isNewArrival     Boolean  @default(false)
+  isBestSeller     Boolean  @default(false)
+  isTrending       Boolean  @default(false)
+  metaTitle        String?
+  metaDescription  String?
+  keyHighlights    Json?
+  sizeGuide        Json?
+  isReturnable     Boolean  @default(true)
+  isExchangeable   Boolean  @default(true)
+  returnWindowDays Int      @default(15)
+  returnPolicy     String?
+  exchangePolicy   String?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
 
   categoryId String
   brandId    String?
 
-  category    Category      @relation(fields: [categoryId], references: [id])
-  brand       Brand?        @relation(fields: [brandId], references: [id])
-  images      ProductImage[]
-  variants    ProductVariant[]
-  inventory   Inventory?
-  reviews     Review[]
-  orderItems  OrderItem[]
-  wishlist    Wishlist[]
-  cartItems   CartItem[]
+  category       Category         @relation(fields: [categoryId], references: [id])
+  brand          Brand?           @relation(fields: [brandId], references: [id])
+  images         ProductImage[]
+  variants       ProductVariant[]
+  inventory      Inventory?
+  reviews        Review[]
+  orderItems     OrderItem[]
+  wishlist       Wishlist[]
+  cartItems      CartItem[]
   recentlyViewed RecentlyViewed[]
 
   @@index([slug])
@@ -231,8 +239,8 @@ model ProductVariant {
   createdAt DateTime @default(now())
 
   product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
-  
-  cartItems  CartItem[] 
+
+  cartItems  CartItem[]
   orderItems OrderItem[]
 
   @@index([productId])
@@ -241,12 +249,12 @@ model ProductVariant {
 }
 
 model Inventory {
-  id            String   @id @default(uuid())
-  productId     String   @unique
-  quantity      Int      @default(0)
-  lowStockThreshold Int  @default(10)
-  trackInventory Boolean @default(true)
-  updatedAt     DateTime @updatedAt
+  id                String   @id @default(uuid())
+  productId         String   @unique
+  quantity          Int      @default(0)
+  lowStockThreshold Int      @default(10)
+  trackInventory    Boolean  @default(true)
+  updatedAt         DateTime @updatedAt
 
   product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
 
@@ -254,31 +262,31 @@ model Inventory {
 }
 
 model Cart {
-  id        String     @id @default(uuid())
-  userId    String     @unique
-  createdAt DateTime   @default(now())
-  updatedAt DateTime   @updatedAt
+  id        String   @id @default(uuid())
+  userId    String   @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
-  user      User       @relation(fields: [userId], references: [id], onDelete: Cascade)
-  items     CartItem[]
+  user  User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  items CartItem[]
 
   @@index([userId])
   @@map("carts")
 }
 
 model CartItem {
-  id         String   @id @default(uuid())
-  cartId     String
-  productId  String
-  variantId  String?
-  size       String?
-  quantity   Int      @default(1)
-  savedForLater Boolean @default(false)
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
+  id            String   @id @default(uuid())
+  cartId        String
+  productId     String
+  variantId     String?
+  size          String?
+  quantity      Int      @default(1)
+  savedForLater Boolean  @default(false)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
 
-  cart    Cart           @relation(fields: [cartId], references: [id], onDelete: Cascade)
-  product Product        @relation(fields: [productId], references: [id])
+  cart    Cart            @relation(fields: [cartId], references: [id], onDelete: Cascade)
+  product Product         @relation(fields: [productId], references: [id])
   variant ProductVariant? @relation(fields: [variantId], references: [id])
 
   @@unique([cartId, productId, variantId])
@@ -301,32 +309,32 @@ model Wishlist {
 }
 
 model Order {
-  id              String        @id @default(uuid())
-  orderNumber     String        @unique
-  userId          String
-  status          OrderStatus   @default(PENDING)
-  paymentMethod   PaymentMethod @default(CASH_ON_DELIVERY)
-  subtotal        Decimal       @db.Decimal(10, 2)
-  discount        Decimal       @default(0) @db.Decimal(10, 2)
-  shippingCost    Decimal       @default(0) @db.Decimal(10, 2)
-  tax             Decimal       @default(0) @db.Decimal(10, 2)
-  total           Decimal       @db.Decimal(10, 2)
-  couponId        String?
-  notes           String?
-  trackingNumber  String?
-  shippedAt       DateTime?
-  deliveredAt     DateTime?
-  cancelledAt     DateTime?
-  createdAt       DateTime      @default(now())
-  updatedAt       DateTime      @updatedAt
+  id             String        @id @default(uuid())
+  orderNumber    String        @unique
+  userId         String
+  status         OrderStatus   @default(PENDING)
+  paymentMethod  PaymentMethod @default(CASH_ON_DELIVERY)
+  subtotal       Decimal       @db.Decimal(10, 2)
+  discount       Decimal       @default(0) @db.Decimal(10, 2)
+  shippingCost   Decimal       @default(0) @db.Decimal(10, 2)
+  tax            Decimal       @default(0) @db.Decimal(10, 2)
+  total          Decimal       @db.Decimal(10, 2)
+  couponId       String?
+  notes          String?
+  trackingNumber String?
+  shippedAt      DateTime?
+  deliveredAt    DateTime?
+  cancelledAt    DateTime?
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
 
-  user       User        @relation(fields: [userId], references: [id])
-  coupon     Coupon?     @relation(fields: [couponId], references: [id])
-  items      OrderItem[]
-  payment    Payment?
+  user           User            @relation(fields: [userId], references: [id])
+  coupon         Coupon?         @relation(fields: [couponId], references: [id])
+  items          OrderItem[]
+  payment        Payment?
   returnRequests ReturnRequest[]
-  address    Address     @relation(fields: [addressId], references: [id])
-  addressId  String
+  address        Address         @relation(fields: [addressId], references: [id])
+  addressId      String
 
   @@index([userId])
   @@index([status])
@@ -336,20 +344,21 @@ model Order {
 }
 
 model OrderItem {
-  id          String   @id @default(uuid())
-  orderId     String
-  productId   String
-  variantId   String?
-  size        String?
-  name        String
-  image       String?
-  price       Decimal  @db.Decimal(10, 2)
-  quantity    Int
-  subtotal    Decimal  @db.Decimal(10, 2)
+  id        String  @id @default(uuid())
+  orderId   String
+  productId String
+  variantId String?
+  size      String?
+  name      String
+  image     String?
+  price     Decimal @db.Decimal(10, 2)
+  quantity  Int
+  subtotal  Decimal @db.Decimal(10, 2)
 
-  order   Order          @relation(fields: [orderId], references: [id], onDelete: Cascade)
-  product Product        @relation(fields: [productId], references: [id])
-  variant ProductVariant? @relation(fields: [variantId], references: [id])
+  order       Order               @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  product     Product             @relation(fields: [productId], references: [id])
+  variant     ProductVariant?     @relation(fields: [variantId], references: [id])
+  returnItems ReturnRequestItem[]
 
   @@index([orderId])
   @@index([productId])
@@ -357,18 +366,18 @@ model OrderItem {
 }
 
 model Payment {
-  id             String        @id @default(uuid())
-  orderId        String        @unique
-  method         PaymentMethod
-  status         PaymentStatus @default(PENDING)
-  amount         Decimal       @db.Decimal(10, 2)
-  currency       String        @default("inr")
-  transactionId  String?       @unique
-  stripePaymentIntentId String? @unique
-  receiptUrl     String?
-  metadata       Json?
-  createdAt      DateTime      @default(now())
-  updatedAt      DateTime      @updatedAt
+  id                    String        @id @default(uuid())
+  orderId               String        @unique
+  method                PaymentMethod
+  status                PaymentStatus @default(PENDING)
+  amount                Decimal       @db.Decimal(10, 2)
+  currency              String        @default("inr")
+  transactionId         String?       @unique
+  stripePaymentIntentId String?       @unique
+  receiptUrl            String?
+  metadata              Json?
+  createdAt             DateTime      @default(now())
+  updatedAt             DateTime      @updatedAt
 
   order Order @relation(fields: [orderId], references: [id], onDelete: Cascade)
 
@@ -378,16 +387,16 @@ model Payment {
 }
 
 model Review {
-  id        String   @id @default(uuid())
-  userId    String
-  productId String
-  rating    Int
-  title     String?
-  comment   String?
-  isVerified Boolean @default(false)
-  isActive  Boolean  @default(true)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id         String   @id @default(uuid())
+  userId     String
+  productId  String
+  rating     Int
+  title      String?
+  comment    String?
+  isVerified Boolean  @default(false)
+  isActive   Boolean  @default(true)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
 
   user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
   product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
@@ -399,19 +408,19 @@ model Review {
 }
 
 model Coupon {
-  id            String      @id @default(uuid())
-  code          String      @unique
-  type          CouponType
-  value         Decimal     @db.Decimal(10, 2)
+  id             String     @id @default(uuid())
+  code           String     @unique
+  type           CouponType
+  value          Decimal    @db.Decimal(10, 2)
   minOrderAmount Decimal?   @db.Decimal(10, 2)
-  maxDiscount   Decimal?    @db.Decimal(10, 2)
-  usageLimit    Int?
-  usedCount     Int         @default(0)
-  startDate     DateTime
-  endDate       DateTime
-  isActive      Boolean     @default(true)
-  createdAt     DateTime    @default(now())
-  updatedAt     DateTime    @updatedAt
+  maxDiscount    Decimal?   @db.Decimal(10, 2)
+  usageLimit     Int?
+  usedCount      Int        @default(0)
+  startDate      DateTime
+  endDate        DateTime
+  isActive       Boolean    @default(true)
+  createdAt      DateTime   @default(now())
+  updatedAt      DateTime   @updatedAt
 
   orders Order[]
 
@@ -452,21 +461,101 @@ model RecentlyViewed {
 }
 
 model ReturnRequest {
-  id           String   @id @default(uuid())
-  orderId      String
-  userId       String
-  type         String   @default("RETURN")
-  reason       String
-  status       String   @default("REQUESTED")
-  refundAmount Decimal? @db.Decimal(10, 2)
-  adminNote    String?
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  id                     String    @id @default(uuid())
+  orderId                String
+  userId                 String
+  type                   String    @default("RETURN") // RETURN | EXCHANGE
+  reason                 String
+  subReason              String? // WRONG_SIZE | WRONG_PRODUCT | DAMAGED | DEFECTIVE | QUALITY | CHANGED_MIND | OTHER
+  comments               String?
+  status                 String    @default("PENDING") // PENDING | APPROVED | REJECTED | PICKUP_SCHEDULED | PICKED_UP | REFUND_PROCESSED | EXCHANGE_SHIPPED | COMPLETED | CANCELLED
+  refundAmount           Decimal?  @db.Decimal(10, 2)
+  refundMethod           String? // ORIGINAL | WALLET | STORE_CREDIT
+  refundStatus           String    @default("PENDING") // PENDING | PROCESSED | FAILED
+  refundedAt             DateTime?
+  refundTransactionId    String?
+  storeCreditCouponCode  String?
+  pickupScheduledAt      DateTime?
+  pickedUpAt             DateTime?
+  exchangeShippedAt      DateTime?
+  exchangeTrackingNumber String?
+  replacementOrderId     String?
+  adminNote              String?
+  createdAt              DateTime  @default(now())
+  updatedAt              DateTime  @updatedAt
 
-  order Order @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  order   Order                 @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  user    User                  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  items   ReturnRequestItem[]
+  images  ReturnRequestImage[]
+  history ReturnStatusHistory[]
 
   @@index([orderId])
   @@index([userId])
   @@index([status])
   @@map("return_requests")
+}
+
+model ReturnRequestItem {
+  id                String   @id @default(uuid())
+  returnRequestId   String
+  orderItemId       String
+  quantity          Int      @default(1)
+  reason            String?
+  subReason         String?
+  // For EXCHANGE flow: desired new size / variant
+  exchangeSize      String?
+  exchangeVariantId String?
+  createdAt         DateTime @default(now())
+
+  returnRequest ReturnRequest @relation(fields: [returnRequestId], references: [id], onDelete: Cascade)
+  orderItem     OrderItem     @relation(fields: [orderItemId], references: [id], onDelete: Cascade)
+
+  @@index([returnRequestId])
+  @@index([orderItemId])
+  @@map("return_request_items")
+}
+
+model ReturnRequestImage {
+  id              String   @id @default(uuid())
+  returnRequestId String
+  url             String
+  publicId        String?
+  createdAt       DateTime @default(now())
+
+  returnRequest ReturnRequest @relation(fields: [returnRequestId], references: [id], onDelete: Cascade)
+
+  @@index([returnRequestId])
+  @@map("return_request_images")
+}
+
+model ReturnStatusHistory {
+  id              String   @id @default(uuid())
+  returnRequestId String
+  status          String
+  note            String?
+  changedBy       String? // user id (customer/admin)
+  changedByRole   String? // USER | ADMIN | SYSTEM
+  createdAt       DateTime @default(now())
+
+  returnRequest ReturnRequest @relation(fields: [returnRequestId], references: [id], onDelete: Cascade)
+
+  @@index([returnRequestId])
+  @@map("return_status_history")
+}
+
+model WalletTransaction {
+  id        String   @id @default(uuid())
+  userId    String
+  type      String // CREDIT | DEBIT
+  amount    Decimal  @db.Decimal(10, 2)
+  balance   Decimal  @db.Decimal(10, 2)
+  reason    String
+  reference String? // return request id, order id, etc.
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("wallet_transactions")
 }
