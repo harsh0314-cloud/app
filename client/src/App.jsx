@@ -24,6 +24,18 @@ const AdminCoupons = lazy(() => import('./pages/admin/AdminCoupons'));
 const AdminInventory = lazy(() => import('./pages/admin/AdminInventory'));
 const AdminOrders = lazy(() => import('./pages/admin/AdminOrders'));
 const AdminReturns = lazy(() => import('./pages/admin/AdminReturns'));
+const AdminNewsletter = lazy(() => import('./pages/admin/AdminNewsletter'));
+const AdminContact = lazy(() => import('./pages/admin/AdminContact'));
+const AdminCareers = lazy(() => import('./pages/admin/AdminCareers'));
+// Public marketing pages
+const Contact = lazy(() => import('./pages/Contact'));
+const Careers = lazy(() => import('./pages/Careers'));
+const Press = lazy(() => import('./pages/Press'));
+const OurStory = lazy(() => import('./pages/OurStory'));
+const Sustainability = lazy(() => import('./pages/Sustainability'));
+const Shipping = lazy(() => import('./pages/Shipping'));
+const ReturnsPolicy = lazy(() => import('./pages/ReturnsPolicy'));
+const SizeGuide = lazy(() => import('./pages/SizeGuide'));
 const AdminAnalytics = lazy(() => import('./pages/admin/AdminAnalytics'));
 const PaymentSuccess = lazy(() => import('./pages/PaymentSuccess'));
 const PaymentCancel = lazy(() => import('./pages/PaymentCancel'));
@@ -84,6 +96,16 @@ function AnimatedRoutes() {
             <Route path="/profile" element={<Page><Profile /></Page>} />
             <Route path="/payment/success" element={<PaymentSuccess />} />
             <Route path="/payment/cancel" element={<Page><PaymentCancel /></Page>} />
+
+            {/* Public marketing / info pages */}
+            <Route path="/contact"        element={<Page><Contact /></Page>} />
+            <Route path="/careers"        element={<Page><Careers /></Page>} />
+            <Route path="/press"          element={<Page><Press /></Page>} />
+            <Route path="/about"          element={<Page><OurStory /></Page>} />
+            <Route path="/sustainability" element={<Page><Sustainability /></Page>} />
+            <Route path="/shipping"       element={<Page><Shipping /></Page>} />
+            <Route path="/returns-policy" element={<Page><ReturnsPolicy /></Page>} />
+            <Route path="/size-guide"     element={<Page><SizeGuide /></Page>} />
             <Route path="/admin/add-product" element={<ProtectedAdminRoute><AddProduct /></ProtectedAdminRoute>} />
             <Route path="/admin" element={<ProtectedAdminRoute><AdminLayout /></ProtectedAdminRoute>}>
               <Route index element={<Dashboard />} />
@@ -94,6 +116,9 @@ function AnimatedRoutes() {
               <Route path="add-product" element={<AddProduct />} />
               <Route path="coupons" element={<AdminCoupons />} />
               <Route path="returns" element={<AdminReturns />} />
+              <Route path="newsletter" element={<AdminNewsletter />} />
+              <Route path="contact" element={<AdminContact />} />
+              <Route path="careers" element={<AdminCareers />} />
             </Route>
           </Routes>
         </AnimatePresence>

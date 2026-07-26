@@ -559,3 +559,58 @@ model WalletTransaction {
   @@index([userId])
   @@map("wallet_transactions")
 }
+
+// ────────────────────────────────────────────────────────────
+// Marketing / Client-Care collections
+// ────────────────────────────────────────────────────────────
+
+model NewsletterSubscriber {
+  id            String   @id @default(uuid())
+  email         String   @unique
+  status        String   @default("SUBSCRIBED") // SUBSCRIBED | UNSUBSCRIBED
+  source        String   @default("Footer")
+  subscribedAt  DateTime @default(now())
+  unsubscribedAt DateTime?
+  updatedAt     DateTime @updatedAt
+
+  @@index([status])
+  @@index([subscribedAt])
+  @@map("newsletter_subscribers")
+}
+
+model ContactMessage {
+  id        String   @id @default(uuid())
+  name      String
+  email     String
+  phone     String?
+  subject   String?
+  message   String
+  status    String   @default("NEW") // NEW | READ | ARCHIVED
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([status])
+  @@index([createdAt])
+  @@map("contact_messages")
+}
+
+model JobApplication {
+  id          String   @id @default(uuid())
+  name        String
+  email       String
+  phone       String?
+  position    String
+  coverLetter String?
+  resumeUrl   String?
+  resumePublicId String?
+  linkedin    String?
+  portfolio   String?
+  status      String   @default("NEW") // NEW | REVIEWED | SHORTLISTED | REJECTED | HIRED
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([status])
+  @@index([position])
+  @@index([createdAt])
+  @@map("job_applications")
+}

@@ -26,12 +26,9 @@ router.post('/resend-verification', authenticate, authController.resendVerificat
 router.post('/forgot-password', validate(forgotPasswordSchema), authController.forgotPassword);
 router.post('/reset-password', validate(resetPasswordSchema), authController.resetPassword);
 
-// Newsletter Subscription (Mock)
-router.post('/newsletter', (req, res) => {
-  const { email } = req.body;
-  if (!email) return res.status(400).json({ message: 'Email is required' });
-  console.log(`📩 New newsletter signup: ${email}`);
-  res.status(200).json({ status: 'success', message: 'Subscribed successfully!' });
-});
+const newsletterController = require('../controllers/newsletterController');
+
+// Newsletter Subscription — delegates to the real newsletterController (backward-compat alias).
+router.post('/newsletter', newsletterController.subscribe);
 
 module.exports = router;

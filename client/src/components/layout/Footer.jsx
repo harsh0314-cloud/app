@@ -10,11 +10,21 @@ export default function Footer() {
 
   const subscribe = async (e) => {
     e.preventDefault();
-    if (!email) return;
+    const value = email.trim();
+    if (!value) return;
+    // Client-side email sanity check for immediate feedback.
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)) {
+      toast.error('Please enter a valid email address.');
+      return;
+    }
     setLoading(true);
     try {
-      await api.post('/auth/newsletter', { email });
-      toast.success('Welcome to the list.');
+      const res = await api.post('/newsletter/subscribe', { email: value, source: 'Footer' });
+      if (res.data?.already) {
+        toast('You are already subscribed.', { icon: '👋' });
+      } else {
+        toast.success(res.data?.message || 'Welcome to the list.');
+      }
       setEmail('');
     } catch (err) {
       toast.error(err.message || 'Subscription failed');
@@ -22,9 +32,24 @@ export default function Footer() {
   };
 
   const cols = [
-    { title: 'Shop', links: [['All Products', '/products'], ['New Arrivals', '/products?sort=newest'], ['Best Sellers', '/products'], ['Sale', '/products?sort=price-desc']] },
-    { title: 'Client Care', links: [['Contact', '#'], ['Shipping', '#'], ['Returns', '#'], ['Size Guide', '#']] },
-    { title: 'Maison', links: [['Our Story', '#'], ['Sustainability', '#'], ['Careers', '#'], ['Press', '#']] },
+    { title: 'Shop', links: [
+      ['All Products',  '/products'],
+      ['New Arrivals',  '/products?sort=newest'],
+      ['Best Sellers',  '/products?filter=best-sellers'],
+      ['Sale',          '/products?sort=price-desc'],
+    ]},
+    { title: 'Client Care', links: [
+      ['Contact',              '/contact'],
+      ['Shipping',             '/shipping'],
+      ['Returns & Exchange',   '/returns-policy'],
+      ['Size Guide',           '/size-guide'],
+    ]},
+    { title: 'Maison', links: [
+      ['Our Story',      '/about'],
+      ['Sustainability', '/sustainability'],
+      ['Careers',        '/careers'],
+      ['Press',          '/press'],
+    ]},
   ];
 
   return (

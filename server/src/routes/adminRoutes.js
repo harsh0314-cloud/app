@@ -4,6 +4,9 @@ const adminController = require('../controllers/adminController');
 const analyticsController = require('../controllers/analyticsController');
 const uploadController = require('../controllers/uploadController');
 const returnController = require('../controllers/returnController');
+const newsletterController = require('../controllers/newsletterController');
+const contactController = require('../controllers/contactController');
+const careersController = require('../controllers/careersController');
 const { authenticate } = require('../middleware/auth');
 const { authorize } = require('../middleware/rbac'); 
 const { validate } = require('../middleware/validate');
@@ -47,6 +50,21 @@ router.get('/returns/stats', returnController.adminStats);
 router.get('/returns', returnController.adminListReturns);
 router.get('/returns/:id', returnController.adminGetReturn);
 router.patch('/returns/:id', returnController.adminUpdateReturn);
+
+// --- NEWSLETTER SUBSCRIBERS ---
+router.get('/newsletter/export', newsletterController.adminExportCSV);
+router.get('/newsletter',        newsletterController.adminList);
+router.delete('/newsletter/:id', newsletterController.adminDelete);
+
+// --- CONTACT MESSAGES ---
+router.get('/contact',        contactController.adminList);
+router.patch('/contact/:id',  contactController.adminUpdate);
+router.delete('/contact/:id', contactController.adminDelete);
+
+// --- CAREERS (Job Applications) ---
+router.get('/careers',        careersController.adminList);
+router.patch('/careers/:id',  careersController.adminUpdate);
+router.delete('/careers/:id', careersController.adminDelete);
 
 // --- CUSTOMERS ---
 router.get('/customers', adminController.getAllCustomers);
