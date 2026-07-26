@@ -68,11 +68,11 @@ exports.adminList = async (req, res, next) => {
   } catch (err) { next(err); }
 };
 
-// PATCH /api/admin/contact/:id — update status (mark READ / ARCHIVED).
+// PATCH /api/admin/contact/:id — update status (mark READ / ARCHIVED / REPLIED).
 exports.adminUpdate = async (req, res, next) => {
   try {
     const status = String(req.body.status || '');
-    if (!['NEW', 'READ', 'ARCHIVED'].includes(status)) {
+    if (!['NEW', 'READ', 'REPLIED', 'ARCHIVED'].includes(status)) {
       return next(new AppError('Invalid status value.', 400));
     }
     const existing = await req.prisma.contactMessage.findUnique({ where: { id: req.params.id } });
@@ -81,6 +81,93 @@ exports.adminUpdate = async (req, res, next) => {
     res.status(200).json({ status: 'success', data: { message: updated } });
   } catch (err) { next(err); }
 };
+
+// GET /api/admin/contact/:id — full detail with reply thread.
+exports.adminGet = async (req, res, next) => {
+  try {
+    const message = await req.prisma.contactMessage.findUnique({
+      where: { id: req.params.id },
+      include: { replies: { orderBy: { createdAt: 'asc' } } },
+    });
+    if (!message) return next(new AppError('Message not found', 404));
+    res.status(200).json({ status: 'success', data: { message } });
+  } catch (err) { next(err); }
+};
+
+// POST /api/admin/contact/:id/reply — send email reply and persist thread entry.
+// Body: { subject, body }
+exports.adminReply = async (req, res, next) => {
+  try {
+    const message = await req.prisma.contactMessage.findUnique({ where: { id: req.params.id } });
+    if (!message) return next(new AppError('Message not found', 404));
+
+    const subject = String(req.body.subject || `Re: ${message.subject || 'Your enquiry'}`).trim();
+    const body    = String(req.body.body || '').trim();
+    if (!body || body.length < 3) return next(new AppError('Reply cannot be empty.', 400));
+    if (body.length > 10000) return next(new AppError('Reply is too long.', 400));
+
+    // Lazy-load email helper to keep this file lean; safe no-op if RESEND_API_KEY missing.
+    const { sendGeneric } = require('../utils/email');
+    const adminName = [req.user?.firstName, req.user?.lastName].filter(Boolean).join(' ').trim() || req.user?.email || 'StoreX Support';
+
+    // Personalise the email a little — first name if we have one, else "there".
+    const [firstName] = String(message.name || '').split(' ');
+    const emailHtml = `
+      <p style="font-size:14px;line-height:1.7;color:#444;">Hi ${firstName || 'there'},</p>
+      <div style="font-size:14px;line-height:1.7;color:#333;white-space:pre-wrap;">${escapeHtml(body)}</div>
+      <p style="font-size:13px;line-height:1.6;color:#666;margin-top:24px;">— ${escapeHtml(adminName)}<br/>StoreX Support</p>
+      <hr style="border:none;border-top:1px solid #eee;margin:24px 0;"/>
+      <p style="font-size:11px;color:#999;line-height:1.6;">In reply to your original message:</p>
+      <blockquote style="font-size:12px;color:#888;border-left:2px solid #eee;padding-left:12px;white-space:pre-wrap;">${escapeHtml(message.message)}</blockquote>
+    `;
+    const result = await sendGeneric(message.email, subject, emailHtml, { title: subject });
+
+    // Persist the reply — even if delivery skipped/failed, we keep a record.
+    const now = new Date();
+    const [reply, updated] = await req.prisma.$transaction([
+      req.prisma.contactReply.create({
+        data: {
+          messageId: message.id,
+          subject,
+          body,
+          repliedById:   req.user?.id || null,
+          repliedByName: adminName,
+        },
+      }),
+      req.prisma.contactMessage.update({
+        where: { id: message.id },
+        data: {
+          status: 'REPLIED',
+          adminReply: body,
+          replySubject: subject,
+          repliedAt: now,
+          repliedById:   req.user?.id || null,
+          repliedByName: adminName,
+        },
+      }),
+    ]);
+
+    res.status(200).json({
+      status: 'success',
+      data: { message: updated, reply },
+      message: result?.skipped
+        ? 'Reply saved. Email not delivered — RESEND_API_KEY is not configured.'
+        : result?.error
+          ? `Reply saved, but delivery failed: ${result.error}`
+          : `Reply sent to ${message.email}.`,
+    });
+  } catch (err) { next(err); }
+};
+
+// small helper — avoid pulling in a whole sanitiser for a single-line escape.
+function escapeHtml(str) {
+  return String(str || '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
 
 // DELETE /api/admin/contact/:id
 exports.adminDelete = async (req, res, next) => {

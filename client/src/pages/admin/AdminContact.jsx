@@ -1,11 +1,12 @@
 import { useEffect, useState } from 'react';
-import { Search, Trash2, MessageSquare, Archive, MailOpen, Eye, X } from 'lucide-react';
+import { Search, Trash2, MessageSquare, Archive, MailOpen, Eye, X, Send, User, Clock } from 'lucide-react';
 import toast from 'react-hot-toast';
 import api from '../../services/api';
 
 const STATUS_BADGE = {
   NEW:      'bg-amber-100 text-amber-800',
   READ:     'bg-blue-100 text-blue-800',
+  REPLIED:  'bg-emerald-100 text-emerald-800',
   ARCHIVED: 'bg-gray-100 text-gray-700',
 };
 
@@ -28,6 +29,10 @@ export default function AdminContact() {
   const [debounced, setDebounced] = useState('');
   const [status, setStatus] = useState('ALL');
   const [selected, setSelected] = useState(null);
+  const [detail, setDetail] = useState(null);
+  const [replySubject, setReplySubject] = useState('');
+  const [replyBody, setReplyBody] = useState('');
+  const [replying, setReplying] = useState(false);
 
   useEffect(() => { const t = setTimeout(() => setDebounced(query.trim()), 300); return () => clearTimeout(t); }, [query]);
 
@@ -43,14 +48,49 @@ export default function AdminContact() {
   };
   useEffect(load, [debounced, status, pagination.page]);
 
-  const setStatusOf = async (id, next) => {
-    try { await api.patch(`/admin/contact/${id}`, { status: next }); toast.success('Updated'); load(); }
-    catch (e) { toast.error(e.message || 'Failed'); }
+  const openDrawer = async (msg) => {
+    setSelected(msg);
+    setDetail(null);
+    setReplySubject(`Re: ${msg.subject || 'Your enquiry'}`);
+    setReplyBody('');
+    if (msg.status === 'NEW') setStatusOf(msg.id, 'READ', false);
+    try {
+      const res = await api.get(`/admin/contact/${msg.id}`);
+      setDetail(res.data.message);
+    } catch (e) { toast.error(e.message || 'Failed to open'); }
   };
+
+  const closeDrawer = () => {
+    setSelected(null); setDetail(null); setReplySubject(''); setReplyBody('');
+  };
+
+  const setStatusOf = async (id, next, reload = true) => {
+    try {
+      await api.patch(`/admin/contact/${id}`, { status: next });
+      if (reload) { toast.success('Updated'); load(); }
+    } catch (e) { toast.error(e.message || 'Failed'); }
+  };
+
   const remove = async (id) => {
     if (!window.confirm('Delete this message?')) return;
-    try { await api.delete(`/admin/contact/${id}`); toast.success('Deleted'); setSelected(null); load(); }
+    try { await api.delete(`/admin/contact/${id}`); toast.success('Deleted'); closeDrawer(); load(); }
     catch (e) { toast.error(e.message || 'Failed'); }
+  };
+
+  const sendReply = async () => {
+    if (!replyBody.trim()) return toast.error('Reply cannot be empty.');
+    setReplying(true);
+    try {
+      const res = await api.post(`/admin/contact/${selected.id}/reply`, { subject: replySubject, body: replyBody });
+      toast.success(res?.data?.message || 'Reply sent');
+      // Refresh the drawer detail & the list.
+      const fresh = await api.get(`/admin/contact/${selected.id}`);
+      setDetail(fresh.data.message);
+      setReplyBody('');
+      load();
+    } catch (e) {
+      toast.error(e.message || 'Failed to send reply');
+    } finally { setReplying(false); }
   };
 
   return (
@@ -105,7 +145,7 @@ export default function AdminContact() {
                   <td className="px-4 py-3"><span className={`inline-flex px-2.5 py-1 rounded-full text-[11px] font-semibold ${STATUS_BADGE[r.status] || 'bg-gray-100 text-gray-700'}`}>{r.status}</span></td>
                   <td className="px-4 py-3 text-right">
                     <div className="inline-flex items-center gap-2">
-                      <button onClick={() => { setSelected(r); if (r.status === 'NEW') setStatusOf(r.id, 'READ'); }} data-testid={`contact-view-${r.id}`} className="text-xs inline-flex items-center gap-1 hover:underline"><Eye size={13}/> View</button>
+                      <button onClick={() => openDrawer(r)} data-testid={`contact-view-${r.id}`} className="text-xs inline-flex items-center gap-1 hover:underline"><Eye size={13}/> View & Reply</button>
                       <button onClick={() => setStatusOf(r.id, 'ARCHIVED')} data-testid={`contact-archive-${r.id}`} className="text-xs inline-flex items-center gap-1 text-muted-foreground hover:text-foreground"><Archive size={13}/> Archive</button>
                       <button onClick={() => remove(r.id)} data-testid={`contact-delete-${r.id}`} className="text-xs inline-flex items-center gap-1 text-red-600 hover:underline"><Trash2 size={13}/> Delete</button>
                     </div>
@@ -119,28 +159,87 @@ export default function AdminContact() {
 
       {selected && (
         <div className="fixed inset-0 z-40 flex" data-testid="contact-drawer">
-          <div className="flex-1 bg-black/40" onClick={() => setSelected(null)}/>
-          <aside className="w-full max-w-xl bg-white h-full overflow-y-auto shadow-2xl">
-            <div className="sticky top-0 bg-white border-b border-border px-6 py-4 flex items-center justify-between">
+          <div className="flex-1 bg-black/40" onClick={closeDrawer}/>
+          <aside className="w-full max-w-2xl bg-white h-full overflow-y-auto shadow-2xl">
+            <div className="sticky top-0 z-10 bg-white border-b border-border px-6 py-4 flex items-center justify-between">
               <div>
                 <p className="text-xs uppercase tracking-wider text-muted-foreground">Message from</p>
                 <p className="font-bold text-foreground">{selected.name}</p>
                 <p className="text-xs text-muted-foreground">{selected.email}{selected.phone ? ` · ${selected.phone}` : ''}</p>
               </div>
-              <button onClick={() => setSelected(null)} className="p-2 hover:bg-muted rounded-lg"><X size={16}/></button>
+              <button onClick={closeDrawer} className="p-2 hover:bg-muted rounded-lg"><X size={16}/></button>
             </div>
-            <div className="p-6 space-y-4">
-              <div>
-                <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-1">Subject</p>
-                <p className="text-foreground">{selected.subject || '(no subject)'}</p>
+            <div className="p-6 space-y-5">
+              {/* Original message */}
+              <div className="rounded-2xl border border-border bg-muted/30 p-4">
+                <div className="flex items-center justify-between mb-2 gap-2">
+                  <div className="inline-flex items-center gap-2 text-xs text-muted-foreground">
+                    <User size={12}/><span className="font-semibold text-foreground">{selected.name}</span>
+                    <span className="opacity-60">·</span>
+                    <Clock size={12}/><span>{new Date(selected.createdAt).toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' })}</span>
+                  </div>
+                  <span className={`inline-flex px-2 py-0.5 rounded-full text-[10px] font-semibold ${STATUS_BADGE[selected.status] || 'bg-gray-100 text-gray-700'}`}>{selected.status}</span>
+                </div>
+                {selected.subject && <p className="text-sm font-semibold text-foreground mb-1">{selected.subject}</p>}
+                <p className="text-sm text-foreground whitespace-pre-wrap leading-relaxed">{selected.message}</p>
               </div>
-              <div>
-                <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-1">Message</p>
-                <p className="text-foreground whitespace-pre-wrap leading-relaxed">{selected.message}</p>
-              </div>
-              <div className="flex gap-2 pt-4 border-t border-border">
-                <a href={`mailto:${selected.email}?subject=Re:%20${encodeURIComponent(selected.subject || 'Your enquiry')}`} className="inline-flex items-center gap-2 rounded-lg bg-foreground text-white px-4 py-2 text-xs font-semibold uppercase tracking-wide"><MailOpen size={13}/> Reply</a>
-                <button onClick={() => setStatusOf(selected.id, 'ARCHIVED')} className="inline-flex items-center gap-2 rounded-lg border border-border px-4 py-2 text-xs font-semibold uppercase tracking-wide hover:bg-muted"><Archive size={13}/> Archive</button>
+
+              {/* Conversation history */}
+              {(detail?.replies?.length > 0) && (
+                <div className="space-y-3" data-testid="conversation-history">
+                  <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Conversation history</p>
+                  {detail.replies.map((r) => (
+                    <div key={r.id} className="rounded-2xl border border-emerald-100 bg-emerald-50/60 p-4">
+                      <div className="flex items-center justify-between mb-2 gap-2 text-xs text-muted-foreground">
+                        <div className="inline-flex items-center gap-2">
+                          <MailOpen size={12} className="text-emerald-700"/><span className="font-semibold text-emerald-900">{r.repliedByName || 'Admin'}</span>
+                          <span className="opacity-60">·</span>
+                          <Clock size={12}/><span>{new Date(r.createdAt).toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' })}</span>
+                        </div>
+                        <span className="text-[10px] uppercase tracking-wider text-emerald-700">Reply</span>
+                      </div>
+                      {r.subject && <p className="text-sm font-semibold text-foreground mb-1">{r.subject}</p>}
+                      <p className="text-sm text-foreground whitespace-pre-wrap leading-relaxed">{r.body}</p>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* Reply composer */}
+              <div className="border-t border-border pt-5 space-y-3" data-testid="reply-composer">
+                <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Reply to {selected.name}</p>
+                <div>
+                  <label className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Subject</label>
+                  <input
+                    value={replySubject}
+                    onChange={(e) => setReplySubject(e.target.value)}
+                    data-testid="reply-subject"
+                    placeholder={`Re: ${selected.subject || 'Your enquiry'}`}
+                    className="mt-1 w-full px-4 py-2 border border-border rounded-lg text-sm outline-none focus:ring-2 focus:ring-foreground"
+                  />
+                </div>
+                <div>
+                  <label className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Message</label>
+                  <textarea
+                    value={replyBody}
+                    onChange={(e) => setReplyBody(e.target.value)}
+                    data-testid="reply-body"
+                    rows={6}
+                    placeholder="Type your reply here…"
+                    className="mt-1 w-full px-4 py-3 border border-border rounded-lg text-sm outline-none focus:ring-2 focus:ring-foreground resize-y leading-relaxed"
+                  />
+                </div>
+                <div className="flex flex-wrap items-center gap-2">
+                  <button
+                    onClick={sendReply}
+                    disabled={replying || !replyBody.trim()}
+                    data-testid="send-reply-btn"
+                    className="inline-flex items-center gap-2 rounded-lg bg-foreground text-white px-4 py-2 text-xs font-semibold uppercase tracking-wide hover:opacity-90 disabled:opacity-40 transition-opacity"
+                  >
+                    {replying ? 'Sending…' : <><Send size={13}/> Send Reply</>}
+                  </button>
+                  <button onClick={() => setStatusOf(selected.id, 'ARCHIVED')} className="inline-flex items-center gap-2 rounded-lg border border-border px-4 py-2 text-xs font-semibold uppercase tracking-wide hover:bg-muted"><Archive size={13}/> Archive</button>
+                </div>
               </div>
             </div>
           </aside>

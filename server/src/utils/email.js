@@ -53,6 +53,19 @@ async function send(to, subject, html, { retries = 2 } = {}) {
   return { error: lastError?.message || 'Email send failed' };
 }
 
+// Expose the shared helpers so marketing / support flows can reuse the exact
+// same look-and-feel and delivery guarantees as transactional email.
+exports._send = send;
+exports.shell = shell;
+exports.button = button;
+
+// Generic sender for campaigns & admin replies — auto-wraps in the StoreX shell
+// (unless the caller passes wrap:false, in which case the html is sent as-is).
+exports.sendGeneric = async (to, subject, html, { wrap = true, title } = {}) => {
+  const finalHtml = wrap ? shell(title || subject, html) : html;
+  return send(to, subject, finalHtml);
+};
+
 exports.sendWelcomeEmail = async (to, firstName = '') => {
   const body = `
     <p style="font-size:14px;line-height:1.6;color:#444;">Hi ${firstName || 'there'}, welcome to <strong>StoreX</strong> — we're thrilled to have you.</p>

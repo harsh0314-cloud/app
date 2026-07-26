@@ -102,13 +102,52 @@ exports.adminList = async (req, res, next) => {
 };
 
 // PATCH /api/admin/careers/:id
+// Accepts any subset of { status, rating, internalNotes, interviewScheduledAt }.
+// These extra fields are private and never surfaced to the applicant.
 exports.adminUpdate = async (req, res, next) => {
   try {
-    const status = String(req.body.status || '');
-    if (!ALLOWED_STATUSES.includes(status)) return next(new AppError('Invalid status value.', 400));
     const existing = await req.prisma.jobApplication.findUnique({ where: { id: req.params.id } });
     if (!existing) return next(new AppError('Application not found', 404));
-    const updated = await req.prisma.jobApplication.update({ where: { id: req.params.id }, data: { status } });
+
+    const data = {};
+
+    if (req.body.status !== undefined) {
+      if (!ALLOWED_STATUSES.includes(String(req.body.status))) {
+        return next(new AppError('Invalid status value.', 400));
+      }
+      data.status = String(req.body.status);
+    }
+
+    if (req.body.rating !== undefined) {
+      if (req.body.rating === null || req.body.rating === '') {
+        data.rating = null;
+      } else {
+        const n = parseInt(req.body.rating, 10);
+        if (Number.isNaN(n) || n < 1 || n > 5) return next(new AppError('Rating must be between 1 and 5.', 400));
+        data.rating = n;
+      }
+    }
+
+    if (req.body.internalNotes !== undefined) {
+      const notes = req.body.internalNotes === null ? null : String(req.body.internalNotes || '').slice(0, 4000);
+      data.internalNotes = notes || null;
+    }
+
+    if (req.body.interviewScheduledAt !== undefined) {
+      if (!req.body.interviewScheduledAt) {
+        data.interviewScheduledAt = null;
+      } else {
+        const d = new Date(req.body.interviewScheduledAt);
+        if (Number.isNaN(d.getTime())) return next(new AppError('Invalid interview date/time.', 400));
+        data.interviewScheduledAt = d;
+      }
+    }
+
+    if (Object.keys(data).length === 0) {
+      return next(new AppError('Nothing to update.', 400));
+    }
+
+    const updated = await req.prisma.jobApplication.update({ where: { id: req.params.id }, data });
     res.status(200).json({ status: 'success', data: { application: updated } });
   } catch (err) { next(err); }
 };

@@ -14,6 +14,7 @@ exports.getProducts = async (req, res, next) => {
     const category = req.query.category || undefined;
     const brand = req.query.brand || undefined;
     const sort = req.query.sort || 'newest';
+    const filter = req.query.filter || undefined;  // e.g. filter=best-sellers
     const page = parseInt(req.query.page) || 1;
     const limit = parseInt(req.query.limit) || 6;
     const skip = (page - 1) * limit;
@@ -25,7 +26,7 @@ exports.getProducts = async (req, res, next) => {
 
     // 2. Build the Where Clause safely
     const where = { isActive: true };
-    
+
     if (search) {
       where.OR = [
         { name: { contains: search, mode: 'insensitive' } },
@@ -41,11 +42,72 @@ exports.getProducts = async (req, res, next) => {
     if (newArrival) where.isNewArrival = true;
     if (bestSeller) where.isBestSeller = true;
 
+    // ─── Best Sellers: real sales-based ranking ────────────────────────────
+    // Triggered by ?sort=best-sellers OR ?filter=best-sellers. We rank
+    // products by SUM(order_items.quantity) across paid/fulfilled orders,
+    // then merge in never-sold products at the end so the page still fills.
+    const wantsBestSellersRanking =
+      sort === 'best-sellers' || sort === 'bestseller' || filter === 'best-sellers';
+
+    if (wantsBestSellersRanking) {
+      const salesGroups = await req.prisma.orderItem.groupBy({
+        by: ['productId'],
+        _sum: { quantity: true },
+        where: {
+          order: { status: { in: ['CONFIRMED', 'PROCESSING', 'SHIPPED', 'DELIVERED'] } },
+        },
+        orderBy: { _sum: { quantity: 'desc' } },
+      });
+
+      // Filter salesGroups to only include products that still match `where`.
+      const matchingIds = new Set(
+        (await req.prisma.product.findMany({ where, select: { id: true } })).map((p) => p.id)
+      );
+      const rankedIds = salesGroups
+        .map((g) => g.productId)
+        .filter((id) => matchingIds.has(id));
+
+      // Fall back / pad with never-sold products (by createdAt desc) so the
+      // page fills up when we have very little order data.
+      const unsoldIds = [...matchingIds].filter((id) => !rankedIds.includes(id));
+      const orderedIds = [...rankedIds, ...unsoldIds];
+
+      const pageIds = orderedIds.slice(skip, skip + limit);
+      const total = orderedIds.length;
+
+      const productsRaw = pageIds.length
+        ? await req.prisma.product.findMany({
+            where: { id: { in: pageIds } },
+            include: PRODUCT_INCLUDE,
+          })
+        : [];
+
+      // Rehydrate in the correct sales-ranked order and attach salesCount so
+      // the frontend can display it if desired.
+      const salesMap = Object.fromEntries(salesGroups.map((g) => [g.productId, g._sum.quantity || 0]));
+      const products = pageIds
+        .map((id) => productsRaw.find((p) => p.id === id))
+        .filter(Boolean)
+        .map((p) => ({ ...p, salesCount: salesMap[p.id] || 0 }));
+
+      return res.status(200).json({
+        status: 'success',
+        data: {
+          products,
+          pagination: {
+            page,
+            limit,
+            total,
+            totalPages: Math.max(1, Math.ceil(total / limit)),
+          },
+        },
+      });
+    }
+
     // 3. Build Order By safely
     let orderBy = { createdAt: 'desc' }; // Default to newest
     if (sort === 'price-asc') orderBy = { price: 'asc' };
     else if (sort === 'price-desc') orderBy = { price: 'desc' };
-    else if (sort === 'bestseller' || sort === 'best-sellers') orderBy = [{ isBestSeller: 'desc' }, { createdAt: 'desc' }];
 
     // 4. Fetch Data and Total Count in parallel
     const [products, total] = await req.prisma.$transaction([

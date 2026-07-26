@@ -12,6 +12,11 @@ const SKIP_KEYS = new Set([
   'razorpay_signature',
   'razorpay_payment_id',
   'razorpay_order_id',
+  // Rich-content fields intentionally left untouched — used only by ADMIN
+  // routes for campaign HTML / reply bodies / internal recruiter notes.
+  'body',
+  'adminReply',
+  'internalNotes',
 ]);
 
 const cleanString = (str) => {

@@ -585,13 +585,35 @@ model ContactMessage {
   phone     String?
   subject   String?
   message   String
-  status    String   @default("NEW") // NEW | READ | ARCHIVED
+  status    String   @default("NEW") // NEW | READ | REPLIED | ARCHIVED
+  adminReply    String?
+  replySubject  String?
+  repliedAt     DateTime?
+  repliedById   String?
+  repliedByName String?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
+  replies ContactReply[]
 
   @@index([status])
   @@index([createdAt])
   @@map("contact_messages")
+}
+
+model ContactReply {
+  id            String   @id @default(uuid())
+  messageId     String
+  subject       String?
+  body          String
+  repliedById   String?
+  repliedByName String?
+  createdAt     DateTime @default(now())
+
+  message ContactMessage @relation(fields: [messageId], references: [id], onDelete: Cascade)
+
+  @@index([messageId])
+  @@map("contact_replies")
 }
 
 model JobApplication {
@@ -606,6 +628,9 @@ model JobApplication {
   linkedin    String?
   portfolio   String?
   status      String   @default("NEW") // NEW | REVIEWED | SHORTLISTED | REJECTED | HIRED
+  rating              Int?      // 1-5 admin rating (private)
+  internalNotes       String?   // private notes never shown to applicant
+  interviewScheduledAt DateTime?
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
@@ -613,4 +638,44 @@ model JobApplication {
   @@index([position])
   @@index([createdAt])
   @@map("job_applications")
+}
+
+model NewsletterCampaign {
+  id              String   @id @default(uuid())
+  subject         String
+  body            String   // rich HTML content
+  audience        String   @default("ALL")     // ALL | ACTIVE | SELECTED
+  recipientEmails Json?                        // string[] for SELECTED audience
+  status          String   @default("DRAFT")   // DRAFT | SENDING | COMPLETED | PARTIAL | FAILED
+  totalRecipients Int      @default(0)
+  sentCount       Int      @default(0)
+  failedCount     Int      @default(0)
+  pendingCount    Int      @default(0)
+  sentAt          DateTime?
+  createdById     String?
+  createdByName   String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  recipients NewsletterCampaignRecipient[]
+
+  @@index([status])
+  @@index([createdAt])
+  @@map("newsletter_campaigns")
+}
+
+model NewsletterCampaignRecipient {
+  id         String   @id @default(uuid())
+  campaignId String
+  email      String
+  status     String   @default("PENDING") // PENDING | SENT | FAILED
+  error      String?
+  sentAt     DateTime?
+
+  campaign NewsletterCampaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+
+  @@unique([campaignId, email])
+  @@index([campaignId])
+  @@index([status])
+  @@map("newsletter_campaign_recipients")
 }

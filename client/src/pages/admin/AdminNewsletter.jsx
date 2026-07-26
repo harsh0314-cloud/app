@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Search, Trash2, Download, Mail, Users } from 'lucide-react';
+import { Search, Trash2, Download, Mail, Users, Send } from 'lucide-react';
 import toast from 'react-hot-toast';
 import api from '../../services/api';
+import NewsletterCampaigns from './newsletter/NewsletterCampaigns';
 
 const STATUS_BADGE = {
   SUBSCRIBED:   'bg-emerald-100 text-emerald-800',
@@ -26,6 +27,7 @@ export default function AdminNewsletter() {
   const [query, setQuery] = useState('');
   const [debounced, setDebounced] = useState('');
   const [status, setStatus] = useState('ALL');
+  const [tab, setTab] = useState('subscribers'); // 'subscribers' | 'campaigns'
 
   useEffect(() => { const t = setTimeout(() => setDebounced(query.trim()), 300); return () => clearTimeout(t); }, [query]);
 
@@ -80,12 +82,39 @@ export default function AdminNewsletter() {
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
           <h1 className="text-2xl font-bold flex items-center gap-3"><Mail size={22}/> Newsletter</h1>
-          <p className="text-sm text-muted-foreground mt-1">Everyone who signed up for updates — search, filter, and export.</p>
+          <p className="text-sm text-muted-foreground mt-1">Manage subscribers and craft campaigns to send them.</p>
         </div>
-        <button onClick={exportCsv} data-testid="newsletter-export" className="inline-flex items-center gap-2 rounded-lg border border-border px-3 py-2 text-xs font-semibold hover:bg-muted transition-colors">
-          <Download size={13}/> Export CSV
+        {tab === 'subscribers' && (
+          <button onClick={exportCsv} data-testid="newsletter-export" className="inline-flex items-center gap-2 rounded-lg border border-border px-3 py-2 text-xs font-semibold hover:bg-muted transition-colors">
+            <Download size={13}/> Export CSV
+          </button>
+        )}
+      </div>
+
+      {/* Tab switch — Subscribers | Campaigns */}
+      <div className="flex items-center gap-1 border-b border-border" role="tablist">
+        <button
+          onClick={() => setTab('subscribers')}
+          role="tab"
+          aria-selected={tab === 'subscribers'}
+          data-testid="tab-subscribers"
+          className={`inline-flex items-center gap-2 px-4 py-2.5 text-xs font-semibold uppercase tracking-wider border-b-2 transition-colors ${tab === 'subscribers' ? 'border-foreground text-foreground' : 'border-transparent text-muted-foreground hover:text-foreground'}`}
+        >
+          <Users size={13}/> Subscribers
+        </button>
+        <button
+          onClick={() => setTab('campaigns')}
+          role="tab"
+          aria-selected={tab === 'campaigns'}
+          data-testid="tab-campaigns"
+          className={`inline-flex items-center gap-2 px-4 py-2.5 text-xs font-semibold uppercase tracking-wider border-b-2 transition-colors ${tab === 'campaigns' ? 'border-foreground text-foreground' : 'border-transparent text-muted-foreground hover:text-foreground'}`}
+        >
+          <Send size={13}/> Campaigns
         </button>
       </div>
+
+      {tab === 'campaigns' ? <NewsletterCampaigns /> : (
+      <>
 
       {stats && (
         <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
@@ -151,6 +180,8 @@ export default function AdminNewsletter() {
             <button disabled={pagination.page >= pagination.totalPages} onClick={() => setPage(pagination.page + 1)} data-testid="newsletter-next" className="rounded border border-border px-3 py-1.5 disabled:opacity-40 hover:bg-muted">Next</button>
           </div>
         </div>
+      )}
+      </>
       )}
     </div>
   );

@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Search, Trash2, Briefcase, ExternalLink, FileText, X } from 'lucide-react';
+import { Search, Trash2, Briefcase, ExternalLink, FileText, X, Star, CalendarClock, Save, Lock } from 'lucide-react';
 import toast from 'react-hot-toast';
 import api from '../../services/api';
 
@@ -30,6 +30,10 @@ export default function AdminCareers() {
   const [debounced, setDebounced] = useState('');
   const [status, setStatus] = useState('ALL');
   const [selected, setSelected] = useState(null);
+  const [notesDraft, setNotesDraft] = useState('');
+  const [interviewDraft, setInterviewDraft] = useState('');
+  const [ratingDraft, setRatingDraft] = useState(0);
+  const [savingPrivate, setSavingPrivate] = useState(false);
 
   useEffect(() => { const t = setTimeout(() => setDebounced(query.trim()), 300); return () => clearTimeout(t); }, [query]);
 
@@ -45,10 +49,39 @@ export default function AdminCareers() {
   };
   useEffect(load, [debounced, status, pagination.page]);
 
+  const openDrawer = (app) => {
+    setSelected(app);
+    setNotesDraft(app.internalNotes || '');
+    setRatingDraft(app.rating || 0);
+    // Format for datetime-local input (YYYY-MM-DDTHH:mm)
+    setInterviewDraft(app.interviewScheduledAt
+      ? new Date(app.interviewScheduledAt).toISOString().slice(0, 16)
+      : '');
+  };
+
   const setStatusOf = async (id, next) => {
     try { await api.patch(`/admin/careers/${id}`, { status: next }); toast.success('Updated'); load(); }
     catch (e) { toast.error(e.message || 'Failed'); }
   };
+
+  const savePrivate = async () => {
+    if (!selected) return;
+    setSavingPrivate(true);
+    try {
+      const res = await api.patch(`/admin/careers/${selected.id}`, {
+        rating:               ratingDraft || null,
+        internalNotes:        notesDraft,
+        interviewScheduledAt: interviewDraft || null,
+      });
+      const updated = res.data.application;
+      setSelected(updated);
+      toast.success('Private notes saved');
+      load();
+    } catch (e) {
+      toast.error(e.message || 'Save failed');
+    } finally { setSavingPrivate(false); }
+  };
+
   const remove = async (id) => {
     if (!window.confirm('Delete this application?')) return;
     try { await api.delete(`/admin/careers/${id}`); toast.success('Deleted'); setSelected(null); load(); }
@@ -115,7 +148,18 @@ export default function AdminCareers() {
                   </td>
                   <td className="px-4 py-3 text-right">
                     <div className="inline-flex items-center gap-2">
-                      <button onClick={() => setSelected(r)} data-testid={`career-view-${r.id}`} className="text-xs inline-flex items-center gap-1 hover:underline">View</button>
+                      {r.rating > 0 && (
+                        <span data-testid={`career-rating-cell-${r.id}`} className="inline-flex items-center gap-0.5 text-amber-500" title={`Rating: ${r.rating}/5`}>
+                          <Star size={12} className="fill-amber-400 text-amber-400"/>
+                          <span className="text-[11px] font-semibold text-foreground">{r.rating}</span>
+                        </span>
+                      )}
+                      {r.interviewScheduledAt && (
+                        <span data-testid={`career-interview-cell-${r.id}`} className="inline-flex items-center gap-1 text-[11px] text-indigo-700" title="Interview scheduled">
+                          <CalendarClock size={12}/>
+                        </span>
+                      )}
+                      <button onClick={() => openDrawer(r)} data-testid={`career-view-${r.id}`} className="text-xs inline-flex items-center gap-1 hover:underline">View</button>
                       {r.resumeUrl && <a href={r.resumeUrl} target="_blank" rel="noreferrer" data-testid={`career-resume-${r.id}`} className="text-xs inline-flex items-center gap-1 text-foreground hover:underline"><FileText size={13}/> Resume</a>}
                       <button onClick={() => remove(r.id)} data-testid={`career-delete-${r.id}`} className="text-xs inline-flex items-center gap-1 text-red-600 hover:underline"><Trash2 size={13}/> Delete</button>
                     </div>
@@ -130,8 +174,8 @@ export default function AdminCareers() {
       {selected && (
         <div className="fixed inset-0 z-40 flex" data-testid="careers-drawer">
           <div className="flex-1 bg-black/40" onClick={() => setSelected(null)}/>
-          <aside className="w-full max-w-xl bg-white h-full overflow-y-auto shadow-2xl">
-            <div className="sticky top-0 bg-white border-b border-border px-6 py-4 flex items-center justify-between">
+          <aside className="w-full max-w-2xl bg-white h-full overflow-y-auto shadow-2xl">
+            <div className="sticky top-0 z-10 bg-white border-b border-border px-6 py-4 flex items-center justify-between">
               <div>
                 <p className="text-xs uppercase tracking-wider text-muted-foreground">Applicant</p>
                 <p className="font-bold text-foreground">{selected.name}</p>
@@ -139,13 +183,97 @@ export default function AdminCareers() {
               </div>
               <button onClick={() => setSelected(null)} className="p-2 hover:bg-muted rounded-lg"><X size={16}/></button>
             </div>
-            <div className="p-6 space-y-4">
+            <div className="p-6 space-y-5">
               <div><p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-1">Applying for</p><p className="text-foreground">{selected.position}</p></div>
               {selected.coverLetter && <div><p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-1">A short note</p><p className="text-foreground whitespace-pre-wrap leading-relaxed">{selected.coverLetter}</p></div>}
-              <div className="flex flex-wrap gap-2 pt-2">
+              <div className="flex flex-wrap gap-2">
                 {selected.linkedin && <a href={selected.linkedin} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-xs rounded-lg border border-border px-3 py-2 hover:bg-muted"><ExternalLink size={13}/> LinkedIn</a>}
                 {selected.portfolio && <a href={selected.portfolio} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-xs rounded-lg border border-border px-3 py-2 hover:bg-muted"><ExternalLink size={13}/> Portfolio</a>}
                 {selected.resumeUrl && <a href={selected.resumeUrl} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-xs rounded-lg bg-foreground text-white px-3 py-2"><FileText size={13}/> View resume</a>}
+              </div>
+
+              {/* ─── PRIVATE ADMIN SECTION — never surfaced to applicant ─── */}
+              <div className="mt-4 rounded-2xl border border-amber-200 bg-amber-50/50 p-5 space-y-4" data-testid="private-admin-notes">
+                <div className="flex items-center gap-2 text-amber-900">
+                  <Lock size={14}/>
+                  <p className="text-xs font-semibold uppercase tracking-wider">Private — Admins only</p>
+                </div>
+
+                {/* Status shortcuts */}
+                <div>
+                  <label className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Pipeline status</label>
+                  <div className="mt-1 flex flex-wrap gap-1">
+                    {STATUS_LIST.map((s) => (
+                      <button
+                        key={s}
+                        onClick={() => setStatusOf(selected.id, s)}
+                        data-testid={`career-set-status-${s.toLowerCase()}-${selected.id}`}
+                        className={`px-3 py-1.5 rounded-full text-[10px] font-semibold uppercase tracking-wider transition-colors ${selected.status === s ? STATUS_BADGE[s] || 'bg-foreground text-white' : 'bg-white border border-border text-muted-foreground hover:text-foreground'}`}
+                      >
+                        {s}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Star rating */}
+                <div>
+                  <label className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Rating</label>
+                  <div className="mt-1 flex items-center gap-1" data-testid="career-rating">
+                    {[1, 2, 3, 4, 5].map((n) => (
+                      <button
+                        key={n}
+                        onClick={() => setRatingDraft(ratingDraft === n ? 0 : n)}
+                        data-testid={`career-rating-star-${n}`}
+                        title={`${n} star${n === 1 ? '' : 's'}`}
+                        className="p-1 rounded hover:bg-amber-100 transition-colors"
+                      >
+                        <Star size={20} className={n <= ratingDraft ? 'fill-amber-400 text-amber-400' : 'text-muted-foreground'}/>
+                      </button>
+                    ))}
+                    {ratingDraft > 0 && <button onClick={() => setRatingDraft(0)} className="ml-2 text-[11px] text-muted-foreground hover:text-foreground">Clear</button>}
+                  </div>
+                </div>
+
+                {/* Interview date/time */}
+                <div>
+                  <label htmlFor="career-interview" className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Interview scheduled</label>
+                  <div className="mt-1 flex items-center gap-2">
+                    <CalendarClock size={14} className="text-muted-foreground"/>
+                    <input
+                      id="career-interview"
+                      type="datetime-local"
+                      value={interviewDraft}
+                      onChange={(e) => setInterviewDraft(e.target.value)}
+                      data-testid="career-interview-input"
+                      className="flex-1 px-3 py-2 border border-border rounded-lg text-sm bg-white outline-none focus:ring-2 focus:ring-foreground"
+                    />
+                    {interviewDraft && <button onClick={() => setInterviewDraft('')} className="text-[11px] text-muted-foreground hover:text-foreground">Clear</button>}
+                  </div>
+                </div>
+
+                {/* Internal notes */}
+                <div>
+                  <label htmlFor="career-notes" className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Internal notes</label>
+                  <textarea
+                    id="career-notes"
+                    rows={5}
+                    value={notesDraft}
+                    onChange={(e) => setNotesDraft(e.target.value)}
+                    data-testid="career-internal-notes"
+                    placeholder="Interview feedback, red flags, follow-ups… (only admins see this)"
+                    className="mt-1 w-full px-3 py-2 border border-border rounded-lg text-sm bg-white outline-none focus:ring-2 focus:ring-foreground resize-y leading-relaxed"
+                  />
+                </div>
+
+                <button
+                  onClick={savePrivate}
+                  disabled={savingPrivate}
+                  data-testid="save-private-notes-btn"
+                  className="inline-flex items-center gap-2 rounded-lg bg-foreground text-white px-4 py-2 text-xs font-semibold uppercase tracking-wide hover:opacity-90 disabled:opacity-40 transition-opacity"
+                >
+                  {savingPrivate ? 'Saving…' : <><Save size={13}/> Save private notes</>}
+                </button>
               </div>
             </div>
           </aside>
