@@ -34,8 +34,8 @@ export default function Footer() {
   const cols = [
     { title: 'Shop', links: [
       ['All Products',  '/products'],
-      ['New Arrivals',  '/products?sort=newest'],
-      ['Best Sellers',  '/products?filter=best-sellers'],
+      ['New Arrivals',  '/products?newArrival=true'],
+      ['Best Sellers',  '/products?bestSeller=true'],
       ['Sale',          '/products?sort=price-desc'],
     ]},
     { title: 'Client Care', links: [

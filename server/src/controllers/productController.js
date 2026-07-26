@@ -18,6 +18,11 @@ exports.getProducts = async (req, res, next) => {
     const limit = parseInt(req.query.limit) || 6;
     const skip = (page - 1) * limit;
 
+    // Boolean flag filters — accept common truthy forms ("true", "1", "yes").
+    const asBool = (v) => v !== undefined && ['true', '1', 'yes', 'on'].includes(String(v).toLowerCase());
+    const newArrival = asBool(req.query.newArrival);
+    const bestSeller = asBool(req.query.bestSeller);
+
     // 2. Build the Where Clause safely
     const where = { isActive: true };
     
@@ -33,11 +38,14 @@ exports.getProducts = async (req, res, next) => {
     if (brand) {
       where.brand = { name: brand };
     }
+    if (newArrival) where.isNewArrival = true;
+    if (bestSeller) where.isBestSeller = true;
 
     // 3. Build Order By safely
     let orderBy = { createdAt: 'desc' }; // Default to newest
     if (sort === 'price-asc') orderBy = { price: 'asc' };
     else if (sort === 'price-desc') orderBy = { price: 'desc' };
+    else if (sort === 'bestseller' || sort === 'best-sellers') orderBy = [{ isBestSeller: 'desc' }, { createdAt: 'desc' }];
 
     // 4. Fetch Data and Total Count in parallel
     const [products, total] = await req.prisma.$transaction([

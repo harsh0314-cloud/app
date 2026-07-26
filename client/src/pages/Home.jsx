@@ -37,8 +37,7 @@ function Reveal({ children, delay = 0, className = '' }) {
   );
 }
 
-function RevealNow({ children, delay = 0, className = '' }) {
-  return (
+function RevealNow({ children, delay = 0, className = '' }) {  return (
     <motion.div initial={{ opacity: 0, y: 40 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.8, delay, ease }} className={className}>
       {children}
     </motion.div>
@@ -55,9 +54,18 @@ export default function Home() {
   const textY = useTransform(scrollYProgress, [0, 1], ['0%', '60%']);
   const heroOpacity = useTransform(scrollYProgress, [0, 0.8], [1, 0]);
 
+  const [newArrivals, setNewArrivals] = useState([]);
+  const [bestSellers, setBestSellers] = useState([]);
+
   useEffect(() => {
     api.get('/products', { params: { limit: 8 } })
       .then((res) => setProducts(res.data.products || []))
+      .catch(() => {});
+    api.get('/products', { params: { limit: 12, newArrival: true } })
+      .then((res) => setNewArrivals(res.data.products || []))
+      .catch(() => {});
+    api.get('/products', { params: { limit: 12, bestSeller: true } })
+      .then((res) => setBestSellers(res.data.products || []))
       .catch(() => {});
   }, []);
 
@@ -204,6 +212,26 @@ export default function Home() {
             </div>
           )}
         </section>
+
+        {/* DYNAMIC NEW ARRIVALS */}
+        <ProductSlider
+          testId="home-new-arrivals"
+          overline="Just In"
+          title="New Arrivals"
+          viewAllHref="/products?newArrival=true"
+          emptyMessage="No new arrivals just yet — check back soon."
+          products={newArrivals}
+        />
+
+        {/* DYNAMIC BEST SELLERS */}
+        <ProductSlider
+          testId="home-best-sellers"
+          overline="Most Loved"
+          title="Best Sellers"
+          viewAllHref="/products?bestSeller=true"
+          emptyMessage="No best sellers yet — our editors are curating them now."
+          products={bestSellers}
+        />
 
         {/* TRUST */}
         <section className="border-t border-border bg-surface">

@@ -25,14 +25,18 @@ export default function Products() {
   const { products, loading, pagination, filters, updateFilter, setPage } = useProducts();
   const [searchParams, setSearchParams] = useSearchParams();
 
-  // Sync URL params -> filters
+  // Sync URL params -> filters (search, category, sort, newArrival, bestSeller)
   useEffect(() => {
     const search = searchParams.get('search') || '';
     const category = searchParams.get('category') || '';
     const sort = searchParams.get('sort') || 'newest';
+    const newArrival = searchParams.get('newArrival') || '';
+    const bestSeller = searchParams.get('bestSeller') || '';
     if (search !== filters.search) updateFilter('search', search);
     if (category !== filters.category) updateFilter('category', category);
     if (sort !== filters.sort) updateFilter('sort', sort);
+    if (newArrival !== filters.newArrival) updateFilter('newArrival', newArrival);
+    if (bestSeller !== filters.bestSeller) updateFilter('bestSeller', bestSeller);
     // eslint-disable-next-line
   }, [searchParams]);
 
@@ -46,15 +50,23 @@ export default function Products() {
     next.set('sort', value);
     setSearchParams(next);
   };
+  // Independently toggle "new arrivals" / "best sellers" chips.
+  const toggleFlag = (key) => {
+    const next = new URLSearchParams(searchParams);
+    (next.get(key) === 'true') ? next.delete(key) : next.set(key, 'true');
+    setSearchParams(next);
+  };
   const clearSearch = () => {
     const next = new URLSearchParams(searchParams);
     next.delete('search');
     setSearchParams(next);
   };
 
-  const activeSearch = searchParams.get('search') || '';
-  const activeCat = searchParams.get('category') || '';
-  const activeSort = searchParams.get('sort') || 'newest';
+  const activeSearch    = searchParams.get('search') || '';
+  const activeCat       = searchParams.get('category') || '';
+  const activeSort      = searchParams.get('sort') || 'newest';
+  const activeNew       = searchParams.get('newArrival') === 'true';
+  const activeBest      = searchParams.get('bestSeller') === 'true';
 
   return (
     <div className="bg-background">
@@ -87,6 +99,21 @@ export default function Products() {
                 {c.label}
               </button>
             ))}
+            <span className="mx-2 h-4 w-px bg-border" aria-hidden />
+            <button
+              onClick={() => toggleFlag('newArrival')}
+              data-testid="filter-new-arrivals"
+              className={`whitespace-nowrap px-4 py-2 text-[11px] font-semibold uppercase tracking-luxe-sm transition-colors ${activeNew ? 'bg-foreground text-white' : 'text-muted-foreground hover:text-foreground'}`}
+            >
+              New Arrivals
+            </button>
+            <button
+              onClick={() => toggleFlag('bestSeller')}
+              data-testid="filter-best-sellers"
+              className={`whitespace-nowrap px-4 py-2 text-[11px] font-semibold uppercase tracking-luxe-sm transition-colors ${activeBest ? 'bg-foreground text-white' : 'text-muted-foreground hover:text-foreground'}`}
+            >
+              Best Sellers
+            </button>
           </div>
           <div className="flex shrink-0 items-center gap-1 border-l border-border pl-3">
             {SORTS.map((s) => (

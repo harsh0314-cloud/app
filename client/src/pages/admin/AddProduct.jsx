@@ -16,6 +16,8 @@ export default function AddProduct() {
     categoryId: '', 
     brandId: '',
     images: [],
+    isNewArrival: false,
+    isBestSeller: false,
     isReturnable: true,
     isExchangeable: true,
     returnWindowDays: 15,
@@ -140,7 +142,7 @@ export default function AddProduct() {
 
       await api.post('/admin/products', { ...form, images, keyHighlights: highlights, sizeGuide });
       toast.success('Product created successfully!');
-      setForm({ name: '', slug: '', price: '', description: '', categoryId: '', brandId: '', images: [], isReturnable: true, isExchangeable: true, returnWindowDays: 15, returnPolicy: '', exchangePolicy: '' });
+      setForm({ name: '', slug: '', price: '', description: '', categoryId: '', brandId: '', images: [], isNewArrival: false, isBestSeller: false, isReturnable: true, isExchangeable: true, returnWindowDays: 15, returnPolicy: '', exchangePolicy: '' });
       setSelectedImages([]);
       setSearchQuery('');
       setUnsplashImages([]);
@@ -332,6 +334,27 @@ export default function AddProduct() {
             sizeGuide={sizeGuide}
             onSizeGuideChange={setSizeGuide}
           />
+        </div>
+
+        {/* Merchandising toggles */}
+        <div className="border-t border-border pt-6 space-y-3" data-testid="merch-toggle-block">
+          <h3 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">Merchandising</h3>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <label className="flex items-center gap-3 border border-border rounded-xl px-4 py-3 cursor-pointer hover:border-foreground/40 transition-colors">
+              <input type="checkbox" checked={form.isNewArrival} onChange={(e) => setForm({ ...form, isNewArrival: e.target.checked })} className="accent-black" data-testid="toggle-new-arrival"/>
+              <span>
+                <span className="block text-sm font-medium text-foreground">Mark as New Arrival</span>
+                <span className="block text-xs text-muted-foreground">Shows a NEW badge and surfaces in the Home &quot;New Arrivals&quot; slider.</span>
+              </span>
+            </label>
+            <label className="flex items-center gap-3 border border-border rounded-xl px-4 py-3 cursor-pointer hover:border-foreground/40 transition-colors">
+              <input type="checkbox" checked={form.isBestSeller} onChange={(e) => setForm({ ...form, isBestSeller: e.target.checked })} className="accent-black" data-testid="toggle-best-seller"/>
+              <span>
+                <span className="block text-sm font-medium text-foreground">Mark as Best Seller</span>
+                <span className="block text-xs text-muted-foreground">Shows a BEST badge and surfaces in the Home &quot;Best Sellers&quot; slider.</span>
+              </span>
+            </label>
+          </div>
         </div>
 
         {/* Returns & Exchanges policy */}

@@ -11,6 +11,7 @@ export default function ProductList() {
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [sortBy, setSortBy] = useState('newest');
+  const [flag, setFlag] = useState('all'); // 'all' | 'new-arrivals' | 'best-sellers'
   const [editingProduct, setEditingProduct] = useState(null);
   const [editForm, setEditForm] = useState({});
   const [imageModalProduct, setImageModalProduct] = useState(null);
@@ -74,6 +75,11 @@ export default function ProductList() {
 
   const filteredProducts = products
     .filter(p => p.name.toLowerCase().includes(searchQuery.toLowerCase()))
+    .filter(p => {
+      if (flag === 'new-arrivals') return !!p.isNewArrival;
+      if (flag === 'best-sellers') return !!p.isBestSeller;
+      return true;
+    })
     .sort((a, b) => {
       if (sortBy === 'price-asc') return parseFloat(a.price) - parseFloat(b.price);
       if (sortBy === 'price-desc') return parseFloat(b.price) - parseFloat(a.price);
@@ -101,7 +107,7 @@ export default function ProductList() {
       </div>
 
       {/* Filters */}
-      <div className="flex gap-3 mb-6">
+      <div className="flex gap-3 mb-4">
         <div className="relative flex-1">
           <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
           <input 
@@ -122,6 +128,24 @@ export default function ProductList() {
           <option value="price-desc">Price: High to Low</option>
           <option value="stock-low">Low Stock First</option>
         </select>
+      </div>
+
+      {/* Merchandising flag filter chips */}
+      <div className="flex items-center gap-1 mb-6" data-testid="admin-products-flag-filter">
+        {[
+          { key: 'all',           label: 'All Products' },
+          { key: 'new-arrivals',  label: 'New Arrivals' },
+          { key: 'best-sellers',  label: 'Best Sellers' },
+        ].map((f) => (
+          <button
+            key={f.key}
+            onClick={() => setFlag(f.key)}
+            data-testid={`admin-flag-${f.key}`}
+            className={`px-4 py-2 text-xs font-semibold uppercase tracking-wider rounded-full transition-colors ${flag === f.key ? 'bg-foreground text-white' : 'text-muted-foreground hover:text-foreground'}`}
+          >
+            {f.label}
+          </button>
+        ))}
       </div>
 
       {loading ? (

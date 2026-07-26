@@ -12,6 +12,8 @@ export default function useProducts() {
     category: '',
     brand: '',
     sort: 'newest',
+    newArrival: '',
+    bestSeller: '',
     page: 1,
     limit: 6, // Show 6 products per page
   });
