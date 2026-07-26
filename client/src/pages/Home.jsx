@@ -4,6 +4,7 @@ import { motion, useScroll, useTransform } from 'framer-motion';
 import { ArrowRight, ArrowUpRight, ArrowDown, Truck, RotateCcw, ShieldCheck, Headphones } from 'lucide-react';
 import api from '../services/api';
 import ProductCard from '../components/ProductCard';
+import ProductSlider from '../components/ProductSlider';
 import Magnetic from '../components/Magnetic';
 import SEO from '../components/SEO';
 
@@ -37,7 +38,8 @@ function Reveal({ children, delay = 0, className = '' }) {
   );
 }
 
-function RevealNow({ children, delay = 0, className = '' }) {  return (
+function RevealNow({ children, delay = 0, className = '' }) {
+  return (
     <motion.div initial={{ opacity: 0, y: 40 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.8, delay, ease }} className={className}>
       {children}
     </motion.div>

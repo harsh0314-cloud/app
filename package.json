@@ -1,0 +1,15 @@
+  {
+    "name": "ecommerce-monorepo",
+    "version": "1.0.0",
+    "private": true,
+    "scripts": {
+      "dev": "concurrently -k -n SERVER,CLIENT -c blue,magenta \"cd server && PORT=5000 yarn dev\" \"cd client && yarn dev\"",
+      "server": "cd server && yarn dev",
+      "client": "cd client && yarn dev"
+    },
+    "devDependencies": {
+      "concurrently": "^9.1.0"
+    }
+  }
+
+  

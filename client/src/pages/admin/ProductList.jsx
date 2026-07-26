@@ -227,16 +227,20 @@ export default function ProductList() {
                           <input type="checkbox" checked={editForm.isActive} onChange={(e) => setEditForm({...editForm, isActive: e.target.checked})} />
                           Active
                         </label>
-                        <label className="flex items-center gap-2 text-xs">
-                          <input type="checkbox" checked={editForm.isNewArrival} onChange={(e) => setEditForm({...editForm, isNewArrival: e.target.checked})} />
+                        <label className="flex items-center gap-2 text-xs" data-testid={`edit-new-arrival-${product.id}`}>
+                          <input type="checkbox" checked={!!editForm.isNewArrival} onChange={(e) => setEditForm({...editForm, isNewArrival: e.target.checked})} />
                           New Arrival
+                        </label>
+                        <label className="flex items-center gap-2 text-xs" data-testid={`edit-best-seller-${product.id}`}>
+                          <input type="checkbox" checked={!!editForm.isBestSeller} onChange={(e) => setEditForm({...editForm, isBestSeller: e.target.checked})} />
+                          Best Seller
                         </label>
                       </div>
                     ) : (
-                      <div className="flex gap-1">
+                      <div className="flex flex-wrap gap-1">
                         {product.isActive && <span className="text-xs px-2 py-0.5 rounded-full bg-green-100 text-green-700">Active</span>}
-                        {product.isNewArrival && <span className="text-xs px-2 py-0.5 rounded-full bg-blue-100 text-blue-700">New</span>}
-                        {product.isBestSeller && <span className="text-xs px-2 py-0.5 rounded-full bg-amber-100 text-amber-700">Best</span>}
+                        {product.isNewArrival && <span data-testid={`badge-new-arrival-${product.slug || product.id}`} className="text-xs px-2 py-0.5 rounded-full bg-blue-100 text-blue-700 uppercase tracking-wider font-semibold">New Arrival</span>}
+                        {product.isBestSeller && <span data-testid={`badge-best-seller-${product.slug || product.id}`} className="text-xs px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 uppercase tracking-wider font-semibold">Best Seller</span>}
                       </div>
                     )}
                   </td>

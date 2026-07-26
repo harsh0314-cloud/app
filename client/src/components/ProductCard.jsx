@@ -78,7 +78,7 @@ export default function ProductCard({ product, index = 0 }) {
               <span className="bg-sale-red px-3 py-1 text-[10px] font-semibold uppercase tracking-luxe-sm text-white">-{discount}%</span>
             )}
             {product.isBestSeller && (
-              <span className="border border-gold px-3 py-1 text-[10px] font-semibold uppercase tracking-luxe-sm text-gold">Icon</span>
+              <span className="border border-gold px-3 py-1 text-[10px] font-semibold uppercase tracking-luxe-sm text-gold">Best Seller</span>
             )}
           </div>
 
