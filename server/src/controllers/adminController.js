@@ -430,14 +430,44 @@ exports.getAllOrders = async (req, res, next) => {
   }
 };
 
+// Allowed order status transitions. Rejects invalid moves such as DELIVERED → PROCESSING.
+// REFUNDED is a terminal state set by the returns module — not admin-transitionable here.
+const ORDER_STATUS_TRANSITIONS = {
+  PENDING:    ['CONFIRMED', 'CANCELLED'],
+  CONFIRMED:  ['PROCESSING', 'CANCELLED'],
+  PROCESSING: ['SHIPPED', 'CANCELLED'],
+  SHIPPED:    ['DELIVERED'],
+  DELIVERED:  [],
+  CANCELLED:  [],
+  REFUNDED:   [],
+};
+
 exports.updateOrderStatus = async (req, res, next) => {
   try {
     const { id } = req.params;
     const { status, trackingNumber } = req.body;
 
+    if (!status || !Object.prototype.hasOwnProperty.call(ORDER_STATUS_TRANSITIONS, status)) {
+      return next(new AppError('Invalid order status.', 400));
+    }
+
+    // Load current order first so we can validate the transition.
+    const existing = await prisma.order.findUnique({ where: { id } });
+    if (!existing) return next(new AppError('Order not found', 404));
+
+    if (existing.status !== status) {
+      const allowed = ORDER_STATUS_TRANSITIONS[existing.status] || [];
+      if (!allowed.includes(status)) {
+        return next(new AppError(
+          `Cannot move order from ${existing.status} to ${status}. Allowed next: ${allowed.length ? allowed.join(', ') : 'none (terminal)'}.`,
+          400
+        ));
+      }
+    }
+
     const updateData = { status };
     if (trackingNumber) updateData.trackingNumber = trackingNumber;
-    if (status === 'SHIPPED') updateData.shippedAt = new Date();
+    if (status === 'SHIPPED')   updateData.shippedAt   = new Date();
     if (status === 'DELIVERED') updateData.deliveredAt = new Date();
     if (status === 'CANCELLED') updateData.cancelledAt = new Date();
 

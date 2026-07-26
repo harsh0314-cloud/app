@@ -1,11 +1,12 @@
 import { NavLink, Outlet } from 'react-router-dom';
-import { LayoutDashboard, Package, PlusCircle, Tag, Warehouse, LogOut, RotateCcw, BarChart3 } from 'lucide-react';
+import { LayoutDashboard, Package, PlusCircle, Tag, Warehouse, LogOut, RotateCcw, BarChart3, ClipboardList } from 'lucide-react';
 import useAuthStore from '../../store/authStore';
 import { useNavigate } from 'react-router-dom';
 
 const navItems = [
   { to: '/admin', icon: LayoutDashboard, label: 'Overview' },
   { to: '/admin/analytics', icon: BarChart3, label: 'Analytics' },
+  { to: '/admin/orders', icon: ClipboardList, label: 'Orders' },
   { to: '/admin/products', icon: Package, label: 'Products' },
   { to: '/admin/inventory', icon: Warehouse, label: 'Inventory' },
   { to: '/admin/add-product', icon: PlusCircle, label: 'Add Product' },
