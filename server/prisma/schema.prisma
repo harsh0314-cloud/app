@@ -171,7 +171,6 @@ model Product {
   shortDescription String?
   sku              String   @unique
   price            Decimal  @db.Decimal(10, 2)
-  originalPrice    Decimal? @db.Decimal(10, 2)
   comparePrice     Decimal? @db.Decimal(10, 2)
   costPrice        Decimal? @db.Decimal(10, 2)
   isActive         Boolean  @default(true)
