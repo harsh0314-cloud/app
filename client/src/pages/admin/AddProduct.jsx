@@ -12,6 +12,7 @@ export default function AddProduct() {
     name: '', 
     slug: '', 
     price: '', 
+    comparePrice: '', 
     description: '', 
     categoryId: '', 
     brandId: '',
@@ -133,6 +134,12 @@ export default function AddProduct() {
     if (selectedImages.length === 0) {
       return toast.error("Please select at least one image");
     }
+    // Pricing rules (mirror of the server-side guard): Selling > 0, MRP > 0 when set, Selling <= MRP.
+    const sell = parseFloat(form.price);
+    const mrp = form.comparePrice === '' ? null : parseFloat(form.comparePrice);
+    if (!(sell > 0)) return toast.error('Selling Price must be greater than 0');
+    if (mrp !== null && !(mrp > 0)) return toast.error('Original Price (MRP) must be greater than 0');
+    if (mrp !== null && sell > mrp) return toast.error('Selling Price cannot be greater than Original Price (MRP)');
     setLoading(true);
     try {
       const images = selectedImages.map((img, idx) => ({
@@ -142,7 +149,7 @@ export default function AddProduct() {
 
       await api.post('/admin/products', { ...form, images, keyHighlights: highlights, sizeGuide });
       toast.success('Product created successfully!');
-      setForm({ name: '', slug: '', price: '', description: '', categoryId: '', brandId: '', images: [], isNewArrival: false, isBestSeller: false, isReturnable: true, isExchangeable: true, returnWindowDays: 15, returnPolicy: '', exchangePolicy: '' });
+      setForm({ name: '', slug: '', price: '', comparePrice: '', description: '', categoryId: '', brandId: '', images: [], isNewArrival: false, isBestSeller: false, isReturnable: true, isExchangeable: true, returnWindowDays: 15, returnPolicy: '', exchangePolicy: '' });
       setSelectedImages([]);
       setSearchQuery('');
       setUnsplashImages([]);
@@ -171,9 +178,18 @@ export default function AddProduct() {
           <input type="text" required value={form.slug} onChange={(e) => setForm({...form, slug: e.target.value})} className="w-full px-4 py-2.5 bg-muted border border-border rounded-xl text-foreground" placeholder="e.g. wireless-headphones" />
         </div>
 
-        <div>
-          <label className="block text-sm font-medium text-foreground mb-1">Price (₹)</label>
-          <input type="number" required step="0.01" value={form.price} onChange={(e) => setForm({...form, price: e.target.value})} className="w-full px-4 py-2.5 bg-muted border border-border rounded-xl text-foreground" placeholder="199.99" />
+        {/* Pricing: admin enters Original Price (MRP) + Selling Price. Discount % is derived automatically on display. */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div>
+            <label className="block text-sm font-medium text-foreground mb-1">Original Price / MRP (₹)</label>
+            <input type="number" min="0" step="0.01" value={form.comparePrice} onChange={(e) => setForm({...form, comparePrice: e.target.value})} data-testid="product-compare-price" className="w-full px-4 py-2.5 bg-muted border border-border rounded-xl text-foreground" placeholder="1799" />
+            <p className="mt-1 text-xs text-muted-foreground">Shown with a strikethrough. Leave blank if there is no discount.</p>
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-foreground mb-1">Selling Price (₹)</label>
+            <input type="number" required min="0" step="0.01" value={form.price} onChange={(e) => setForm({...form, price: e.target.value})} data-testid="product-price" className="w-full px-4 py-2.5 bg-muted border border-border rounded-xl text-foreground" placeholder="699" />
+            <p className="mt-1 text-xs text-muted-foreground">The price customers pay. Must be ≤ MRP.</p>
+          </div>
         </div>
 
         {/* Category Dropdown */}

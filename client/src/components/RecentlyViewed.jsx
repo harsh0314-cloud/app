@@ -4,6 +4,7 @@ import { Clock } from 'lucide-react';
 import api from '../services/api';
 import useAuthStore from '../store/authStore';
 import { getRecentlyViewed } from '../hooks/useRecentlyViewed';
+import PriceTag from './PriceTag';
 
 // End-to-end recently-viewed rail: uses the server list for logged-in users,
 // falls back to the localStorage hook for guests.
@@ -54,7 +55,7 @@ export default function RecentlyViewed({ excludeId, title = 'Recently Viewed' })
               />
             </div>
             <p className="mt-3 text-sm font-medium text-foreground truncate">{p.name}</p>
-            <p className="text-sm text-muted-foreground">₹{parseFloat(p.price || 0).toFixed(2)}</p>
+            <PriceTag product={p} size="sm" showOff={false} className="mt-1" testId={`recent-price-${p.id}`} />
           </Link>
         ))}
       </div>

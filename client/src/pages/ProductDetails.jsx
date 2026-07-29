@@ -8,6 +8,8 @@ import SEO from '../components/SEO';
 import { useCartStore } from '../store/cartStore';
 import useWishlist from '../hooks/useWishlist';
 import { fmtPrice } from '../components/ProductCard';
+import { getPricing } from '../lib/pricing';
+import PriceTag from '../components/PriceTag';
 import ReviewSection from '../components/ReviewSection';
 import { pushRecentlyViewed } from '../hooks/useRecentlyViewed';
 import RecentlyViewed from '../components/RecentlyViewed';
@@ -87,8 +89,7 @@ export default function ProductDetails() {
   if (!product) return null;
 
   const wished = isWishlisted(product.id);
-  const onSale = product.comparePrice && Number(product.comparePrice) > Number(product.price);
-  const discount = onSale ? Math.round((1 - Number(product.price) / Number(product.comparePrice)) * 100) : 0;
+  const { onSale, discountPercent: discount } = getPricing(product);
   const productUrl = `https://storex-frontend-gold.vercel.app/products/${slug}`;
   const inStock = (product.inventory?.quantity ?? 1) > 0;
   const reviews = product.reviews || [];
@@ -233,11 +234,7 @@ export default function ProductDetails() {
 
             {/* Price */}
             <div className="mt-5" data-testid="price-section">
-              <div className="flex flex-wrap items-baseline gap-3">
-                <span className="font-display text-3xl font-bold text-foreground">{fmtPrice(product.price)}</span>
-                {onSale && <span className="text-lg text-muted-foreground line-through">{fmtPrice(product.comparePrice)}</span>}
-                {onSale && <span className="text-lg font-bold text-green-600">{discount}% OFF</span>}
-              </div>
+              <PriceTag product={product} size="lg" testId="pdp-price" />
               <p className="mt-1 text-xs text-muted-foreground">Inclusive of all taxes</p>
             </div>
 

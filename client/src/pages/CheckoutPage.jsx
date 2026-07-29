@@ -5,6 +5,7 @@ import useAuthStore from '../store/authStore';
 import api from '../services/api';
 import toast from 'react-hot-toast';
 import { fmtPrice } from '../components/ProductCard';
+import PriceTag from '../components/PriceTag';
 import { Tag, X, Truck, Receipt, ShieldCheck, User } from 'lucide-react';
 
 const input = 'w-full border-0 border-b border-input bg-transparent px-0 py-2.5 text-sm focus:border-foreground focus:ring-0';
@@ -226,6 +227,7 @@ export default function CheckoutPage() {
                 <div className="flex-1">
                   <p className="text-sm font-medium">{item.product?.name}</p>
                   <p className="text-xs text-muted-foreground">{item.size ? `Size: ${item.size} · ` : ''}Qty: {item.quantity}</p>
+                  <PriceTag product={item.product} size="sm" className="mt-1" testId={`checkout-unit-price-${item.id}`} />
                 </div>
                 <p className="text-sm font-semibold">{fmtPrice(parseFloat(item.product?.price) * item.quantity)}</p>
               </div>

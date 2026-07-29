@@ -1,4 +1,4 @@
-import { fmtPrice } from '../ProductCard';
+import PriceTag from '../PriceTag';
 
 export default function StickyMobileBar({ price, comparePrice, onSale, onAddToBag, onBuyNow, adding, buying, disabled }) {
   return (
@@ -9,10 +9,7 @@ export default function StickyMobileBar({ price, comparePrice, onSale, onAddToBa
     >
       <div className="flex items-center gap-3">
         <div className="shrink-0">
-          <div className="flex items-baseline gap-2">
-            <span className="font-display text-lg font-bold text-foreground">{fmtPrice(price)}</span>
-            {onSale && <span className="text-xs text-muted-foreground line-through">{fmtPrice(comparePrice)}</span>}
-          </div>
+          <PriceTag price={price} comparePrice={comparePrice} size="md" showOff={false} testId="sticky-price" />
         </div>
         <div className="flex flex-1 gap-2">
           <button

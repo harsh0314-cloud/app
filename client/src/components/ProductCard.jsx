@@ -5,11 +5,11 @@ import { useState } from 'react';
 import toast from 'react-hot-toast';
 import { useCartStore } from '../store/cartStore';
 import useWishlist from '../hooks/useWishlist';
+import { formatPrice, getPricing } from '../lib/pricing';
+import PriceTag from './PriceTag';
 
-export const fmtPrice = (v) => {
-  const n = typeof v === 'string' ? parseFloat(v) : Number(v);
-  return Number.isFinite(n) ? `₹${n.toLocaleString('en-IN')}` : v;
-};
+// Backward-compatible re-export: price formatting now lives in the single pricing helper.
+export const fmtPrice = formatPrice;
 
 export default function ProductCard({ product, index = 0 }) {
   const addToCart = useCartStore((s) => s.addToCart);
@@ -18,8 +18,7 @@ export default function ProductCard({ product, index = 0 }) {
 
   const primary = product.images?.[0]?.url;
   const secondary = product.images?.[1]?.url;
-  const onSale = product.comparePrice && Number(product.comparePrice) > Number(product.price);
-  const discount = onSale ? Math.round((1 - Number(product.price) / Number(product.comparePrice)) * 100) : 0;
+  const { onSale, discountPercent: discount } = getPricing(product);
 
   // CRITICAL FIX: Ensure we use the correct product id
   const productId = product.id;
@@ -128,10 +127,15 @@ export default function ProductCard({ product, index = 0 }) {
             <p className="overline text-muted-foreground">{product.category?.name}</p>
             <h3 className="mt-1 truncate font-display text-[15px] font-semibold tracking-tight text-foreground">{product.name}</h3>
           </div>
-          <div className="flex shrink-0 flex-col items-end">
-            <span className="font-display text-[15px] font-semibold text-foreground">{fmtPrice(product.price)}</span>
-            {onSale && <span className="text-xs text-muted-foreground line-through">{fmtPrice(product.comparePrice)}</span>}
-          </div>
+          <PriceTag
+            product={product}
+            size="sm"
+            layout="stacked"
+            align="right"
+            showOff={false}
+            className="shrink-0"
+            testId={`product-price-${product.slug}`}
+          />
         </div>
       </Link>
     </motion.div>

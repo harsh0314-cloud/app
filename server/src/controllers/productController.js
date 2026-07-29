@@ -270,7 +270,7 @@ exports.getSearchSuggestions = async (req, res, next) => {
       },
       take: 6,
       select: {
-        id: true, name: true, slug: true, price: true,
+        id: true, name: true, slug: true, price: true, comparePrice: true,
         images: { where: { isPrimary: true }, take: 1, select: { url: true } },
         category: { select: { name: true } },
       },

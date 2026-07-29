@@ -4,6 +4,7 @@ import { motion } from 'framer-motion';
 import { Trash2, Minus, Plus, ArrowRight, ShoppingBag, Bookmark, Truck } from 'lucide-react';
 import { useCartStore } from '../store/cartStore';
 import { fmtPrice } from '../components/ProductCard';
+import PriceTag from '../components/PriceTag';
 import api from '../services/api';
 import toast from 'react-hot-toast';
 
@@ -60,6 +61,7 @@ export default function Cart() {
                     <p className="overline text-muted-foreground">{item.product.category?.name}</p>
                     <Link to={`/products/${item.product.slug}`} className="font-display text-lg font-semibold tracking-tight">{item.product.name}</Link>
                     {item.size && <p className="mt-1 text-xs text-muted-foreground" data-testid={`cart-item-size-${item.id}`}>Size: <span className="font-semibold text-foreground">{item.size}</span></p>}
+                    <PriceTag product={item.product} size="sm" className="mt-1.5" testId={`cart-unit-price-${item.id}`} />
                   </div>
                   <span className="font-display text-lg font-semibold">{fmtPrice(item.product.price * item.quantity)}</span>
                 </div>

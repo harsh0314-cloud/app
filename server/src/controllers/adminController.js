@@ -2,6 +2,7 @@ const { PrismaClient } = require('@prisma/client');
 const { AppError } = require('../utils/AppError');
 const { sendOrderStatusEmail } = require('../utils/email');
 const { destroyByUrl } = require('../utils/cloudinary');
+const { validateProductPricing } = require('../utils/pricing');
 
 const prisma = new PrismaClient();
 
@@ -80,6 +81,10 @@ exports.createProduct = async (req, res, next) => {
     if (!name || !slug || !price || !categoryId || !brandId) {
       return next(new AppError('Name, slug, price, categoryId, brandId are required', 400));
     }
+
+    // Enforce pricing rules: Selling Price > 0, MRP > 0 (when given), Selling Price <= MRP.
+    const priceError = validateProductPricing(price, comparePrice);
+    if (priceError) return next(new AppError(priceError, 400));
 
     const cleanHighlights = Array.isArray(keyHighlights)
       ? keyHighlights.map((h) => ({ label: h.label || h.name, value: h.value })).filter((h) => h.label && h.value)
@@ -181,6 +186,16 @@ exports.updateProduct = async (req, res, next) => {
   try {
     const { id } = req.params;
     const { name, slug, price, comparePrice, description, categoryId, brandId, isActive, isNewArrival, isBestSeller, image, clearImage, keyHighlights, sizeGuide } = req.body;
+
+    // Enforce pricing rules against the effective values (merge partial updates with what's stored).
+    if (price !== undefined || comparePrice !== undefined) {
+      const existing = await prisma.product.findUnique({ where: { id }, select: { price: true, comparePrice: true } });
+      if (!existing) return next(new AppError('Product not found', 404));
+      const effPrice = price !== undefined ? price : existing.price;
+      const effCompare = comparePrice !== undefined ? comparePrice : existing.comparePrice;
+      const priceError = validateProductPricing(effPrice, effCompare);
+      if (priceError) return next(new AppError(priceError, 400));
+    }
 
     const updateData = {};
     if (name !== undefined) updateData.name = name;

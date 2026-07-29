@@ -5,6 +5,7 @@ import api from '../../services/api';
 import toast from 'react-hot-toast';
 import ImageReplaceModal from '../../components/admin/ImageReplaceModal';
 import ProductAttributesEditor from '../../components/admin/ProductAttributesEditor';
+import PriceTag from '../../components/PriceTag';
 
 export default function ProductList() {
   const [products, setProducts] = useState([]);
@@ -63,6 +64,12 @@ export default function ProductList() {
   };
 
   const saveEdit = async (id) => {
+    // Pricing rules (mirror of the server-side guard): Selling > 0, MRP > 0 when set, Selling <= MRP.
+    const sell = parseFloat(editForm.price);
+    const mrp = editForm.comparePrice === '' || editForm.comparePrice == null ? null : parseFloat(editForm.comparePrice);
+    if (!(sell > 0)) return toast.error('Selling Price must be greater than 0');
+    if (mrp !== null && !(mrp > 0)) return toast.error('Original Price (MRP) must be greater than 0');
+    if (mrp !== null && sell > mrp) return toast.error('Selling Price cannot be greater than Original Price (MRP)');
     try {
       await api.patch(`/admin/products/${id}`, editForm);
       toast.success('Product updated');
@@ -190,17 +197,36 @@ export default function ProductList() {
                   </td>
                   <td className="px-4 py-3">
                     {editingProduct === product.id ? (
-                      <input 
-                        type="number" 
-                        value={editForm.price}
-                        onChange={(e) => setEditForm({...editForm, price: e.target.value})}
-                        className="w-24 px-2 py-1 border border-border rounded text-sm"
-                      />
-                    ) : (
-                      <div>
-                        <span className="font-semibold">₹{product.price}</span>
-                        {product.comparePrice && <span className="text-xs text-muted-foreground line-through ml-2">₹{product.comparePrice}</span>}
+                      <div className="space-y-1.5">
+                        <label className="block text-[10px] uppercase tracking-wider text-muted-foreground">
+                          MRP
+                          <input
+                            type="number"
+                            min="0"
+                            step="0.01"
+                            value={editForm.comparePrice}
+                            onChange={(e) => setEditForm({ ...editForm, comparePrice: e.target.value })}
+                            data-testid={`edit-compare-price-${product.id}`}
+                            placeholder="Original"
+                            className="mt-0.5 w-24 px-2 py-1 border border-border rounded text-sm"
+                          />
+                        </label>
+                        <label className="block text-[10px] uppercase tracking-wider text-muted-foreground">
+                          Selling
+                          <input
+                            type="number"
+                            min="0"
+                            step="0.01"
+                            value={editForm.price}
+                            onChange={(e) => setEditForm({ ...editForm, price: e.target.value })}
+                            data-testid={`edit-price-${product.id}`}
+                            placeholder="Selling"
+                            className="mt-0.5 w-24 px-2 py-1 border border-border rounded text-sm"
+                          />
+                        </label>
                       </div>
+                    ) : (
+                      <PriceTag product={product} size="sm" testId={`admin-price-${product.id}`} />
                     )}
                   </td>
                   <td className="px-4 py-3">

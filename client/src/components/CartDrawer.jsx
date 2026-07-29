@@ -4,6 +4,7 @@ import { X, Minus, Plus, Trash2, ShoppingBag } from 'lucide-react';
 import { useEffect } from 'react';
 import { useCartStore } from '../store/cartStore';
 import { fmtPrice } from './ProductCard';
+import PriceTag from './PriceTag';
 
 const ease = [0.76, 0, 0.24, 1];
 
@@ -39,6 +40,7 @@ export default function CartDrawer({ open, onClose }) {
                           <div>
                             <p className="overline text-muted-foreground">{item.product.category?.name}</p>
                             <h3 className="font-display text-sm font-semibold">{item.product.name}</h3>
+                            <PriceTag product={item.product} size="sm" className="mt-1" testId={`drawer-unit-price-${item.id}`} />
                           </div>
                           <button onClick={() => removeItem(item.id)} className="text-muted-foreground hover:text-foreground"><Trash2 size={16} /></button>
                         </div>
