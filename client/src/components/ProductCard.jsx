@@ -91,7 +91,7 @@ export default function ProductCard({ product, index = 0 }) {
         {/* Meta: Category → Name (2-line clamp) → single-line Price Row */}
         <div className="flex flex-1 flex-col px-0.5 pt-3.5">
           <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">{product.category?.name}</p>
-          <h3 className="mt-1.5 line-clamp-2 h-10 text-sm font-medium leading-5 text-foreground">{product.name}</h3>
+          <h3 className="mt-1.5 max-w-full truncate text-sm font-medium leading-5 text-foreground" title={product.name}>{product.name}</h3>
           <div className="mt-auto pt-2">
             <PriceTag
               product={product}

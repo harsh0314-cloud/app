@@ -41,7 +41,7 @@ export default function Wishlist() {
             <Link to={`/products/${item.slug}`} className="block">
               <div className="aspect-[3/4] overflow-hidden rounded-2xl bg-surface transition-shadow duration-300 md:group-hover:shadow-[0_18px_40px_-14px_rgba(17,17,17,0.28)]"><img src={item.image} alt={item.name} className="h-full w-full object-cover transition-transform duration-300 ease-out md:group-hover:scale-[1.04]" /></div>
               <div className="flex items-start justify-between pt-4">
-                <div><p className="overline text-muted-foreground">{item.category}</p><h3 className="mt-1 font-display text-sm font-semibold">{item.name}</h3></div>
+                <div className="min-w-0"><p className="overline text-muted-foreground">{item.category}</p><h3 className="mt-1 max-w-full truncate font-display text-sm font-semibold" title={item.name}>{item.name}</h3></div>
                 <span className="font-display text-sm font-semibold">{fmtPrice(item.price)}</span>
               </div>
             </Link>

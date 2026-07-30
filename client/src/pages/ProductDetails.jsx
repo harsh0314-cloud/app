@@ -221,7 +221,7 @@ export default function ProductDetails() {
             <div className="flex items-start justify-between gap-4">
               <div className="min-w-0 flex-1">
                 <p className="overline text-muted-foreground">{product.brand?.name || product.category?.name}</p>
-                <h1 className="mt-2 truncate font-display text-3xl font-bold tracking-tight md:text-4xl" title={product.name}>{product.name}</h1>
+                <h1 className="mt-2 font-display text-3xl font-bold tracking-tight md:text-4xl">{product.name}</h1>
               </div>
               {reviews.length > 0 && (
                 <div className="mt-1 flex shrink-0 items-center gap-1.5 rounded-full border border-border px-3.5 py-1.5" data-testid="rating-badge">
