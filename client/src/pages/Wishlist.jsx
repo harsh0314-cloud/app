@@ -34,12 +34,12 @@ export default function Wishlist() {
       <p className="overline text-muted-foreground">{items.length} Saved</p>
       <h1 className="mb-12 mt-3 font-display text-5xl font-bold tracking-tight sm:text-6xl">Wishlist</h1>
 
-      <div className="grid grid-cols-2 gap-x-4 gap-y-9 sm:gap-x-5 md:grid-cols-3 md:gap-y-10 xl:grid-cols-5">
+      <div className="grid grid-cols-2 gap-x-3 gap-y-9 sm:gap-x-4 md:grid-cols-3 md:gap-y-10 xl:grid-cols-5">
         {items.map((item, i) => (
           <motion.div key={item.id} initial={{ opacity: 0, y: 30 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: (i % 4) * 0.06 }} className="group relative" data-testid={`wishlist-item-${item.slug}`}>
             <button onClick={() => remove(item.id)} data-testid={`wishlist-remove-${item.slug}`} className="absolute right-3 top-3 z-20 flex h-9 w-9 items-center justify-center rounded-full bg-white/70 backdrop-blur-md transition-colors hover:bg-white"><X size={16} /></button>
             <Link to={`/products/${item.slug}`} className="block">
-              <div className="aspect-[4/5] overflow-hidden rounded-2xl bg-surface transition-shadow duration-300 md:group-hover:shadow-[0_18px_40px_-14px_rgba(17,17,17,0.28)]"><img src={item.image} alt={item.name} className="h-full w-full object-cover transition-transform duration-300 ease-out md:group-hover:scale-[1.04]" /></div>
+              <div className="aspect-[3/4] overflow-hidden rounded-2xl bg-surface transition-shadow duration-300 md:group-hover:shadow-[0_18px_40px_-14px_rgba(17,17,17,0.28)]"><img src={item.image} alt={item.name} className="h-full w-full object-cover transition-transform duration-300 ease-out md:group-hover:scale-[1.04]" /></div>
               <div className="flex items-start justify-between pt-4">
                 <div><p className="overline text-muted-foreground">{item.category}</p><h3 className="mt-1 font-display text-sm font-semibold">{item.name}</h3></div>
                 <span className="font-display text-sm font-semibold">{fmtPrice(item.price)}</span>

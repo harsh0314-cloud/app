@@ -47,7 +47,7 @@ export default function ProductCard({ product, index = 0 }) {
       data-testid={`product-card-${product.slug}`}
     >
       <Link to={`/products/${product.slug}`} className="flex h-full flex-col">
-        <div className="relative aspect-[4/5] w-full overflow-hidden rounded-2xl bg-surface transition-shadow duration-300 ease-out md:group-hover:shadow-[0_18px_40px_-14px_rgba(17,17,17,0.28)]">
+        <div className="relative aspect-[3/4] w-full overflow-hidden rounded-2xl bg-surface transition-shadow duration-300 ease-out md:group-hover:shadow-[0_18px_40px_-14px_rgba(17,17,17,0.28)]">
           {/* Badges */}
           <div className="absolute left-3 top-3 z-20 flex flex-col gap-1.5">
             {product.isNewArrival && (

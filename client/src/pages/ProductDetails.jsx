@@ -68,7 +68,7 @@ export default function ProductDetails() {
     return (
       <div className="container-luxe py-24">
         <div className="grid gap-12 lg:grid-cols-2">
-          <div className="aspect-[4/5] animate-pulse rounded-none bg-surface" />
+          <div className="aspect-[4/5] animate-pulse rounded-[20px] bg-surface" />
           <div className="space-y-4">
             <div className="h-4 w-1/4 animate-pulse bg-surface" />
             <div className="h-8 w-3/4 animate-pulse bg-surface" />
@@ -219,12 +219,12 @@ export default function ProductDetails() {
           {/* Info */}
           <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}>
             <div className="flex items-start justify-between gap-4">
-              <div>
+              <div className="min-w-0 flex-1">
                 <p className="overline text-muted-foreground">{product.brand?.name || product.category?.name}</p>
-                <h1 className="mt-2 font-display text-3xl font-bold tracking-tight md:text-4xl">{product.name}</h1>
+                <h1 className="mt-2 truncate font-display text-3xl font-bold tracking-tight md:text-4xl" title={product.name}>{product.name}</h1>
               </div>
               {reviews.length > 0 && (
-                <div className="mt-1 flex shrink-0 items-center gap-1.5 border border-border px-3 py-1.5" data-testid="rating-badge">
+                <div className="mt-1 flex shrink-0 items-center gap-1.5 rounded-full border border-border px-3.5 py-1.5" data-testid="rating-badge">
                   <Star size={14} className="text-gold" style={{ fill: '#C7A86D' }} />
                   <span className="text-sm font-semibold">{avgRating.toFixed(1)}</span>
                   <span className="text-xs text-muted-foreground">| {reviews.length}</span>
@@ -259,7 +259,7 @@ export default function ProductDetails() {
                 onClick={handleAdd}
                 disabled={adding || !anySizeAvailable}
                 data-testid="add-to-bag-btn"
-                className="flex flex-1 items-center justify-center gap-2 border border-foreground py-4 text-[11px] font-semibold uppercase tracking-luxe-sm text-foreground transition-colors hover:bg-foreground hover:text-white disabled:cursor-not-allowed disabled:opacity-50"
+                className="flex flex-1 items-center justify-center gap-2 rounded-xl border border-foreground py-4 text-[11px] font-semibold uppercase tracking-luxe-sm text-foreground transition-colors hover:bg-foreground hover:text-white disabled:cursor-not-allowed disabled:opacity-50"
               >
                 <ShoppingBag size={16} /> {adding ? 'Adding…' : anySizeAvailable ? 'Add to Bag' : 'Out of Stock'}
               </button>
@@ -267,7 +267,7 @@ export default function ProductDetails() {
                 onClick={handleWish}
                 data-testid="wishlist-btn"
                 aria-label={wished ? 'Remove from wishlist' : 'Add to wishlist'}
-                className="flex h-[54px] w-[54px] shrink-0 items-center justify-center border border-border transition-colors hover:bg-surface"
+                className="flex h-[54px] w-[54px] shrink-0 items-center justify-center rounded-xl border border-border transition-colors hover:bg-surface"
               >
                 <motion.span whileTap={{ scale: 0.8 }} transition={{ type: 'spring', stiffness: 400, damping: 15 }}>
                   <Heart size={20} className={wished ? 'fill-red-500 text-red-500' : ''} />
@@ -278,7 +278,7 @@ export default function ProductDetails() {
               onClick={handleBuyNow}
               disabled={buying || !anySizeAvailable}
               data-testid="buy-now-btn"
-              className="mt-3 flex w-full items-center justify-center gap-2 bg-foreground py-4 text-[11px] font-semibold uppercase tracking-luxe-sm text-white transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
+              className="mt-3 flex w-full items-center justify-center gap-2 rounded-xl bg-foreground py-4 text-[11px] font-semibold uppercase tracking-luxe-sm text-white transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
             >
               <Zap size={16} /> {buying ? 'Please wait…' : 'Buy Now'}
             </button>

@@ -205,11 +205,11 @@ export default function Home() {
           </Reveal>
 
           {featured.length === 0 ? (
-            <div className="grid grid-cols-2 gap-x-4 gap-y-9 sm:gap-x-5 md:grid-cols-3 xl:grid-cols-5">
-              {[...Array(5)].map((_, i) => <div key={i} className="aspect-[4/5] animate-pulse rounded-2xl bg-surface" />)}
+            <div className="grid grid-cols-2 gap-x-3 gap-y-9 sm:gap-x-4 md:grid-cols-3 xl:grid-cols-5">
+              {[...Array(5)].map((_, i) => <div key={i} className="aspect-[3/4] animate-pulse rounded-2xl bg-surface" />)}
             </div>
           ) : (
-            <div className="grid grid-cols-2 gap-x-4 gap-y-9 sm:gap-x-5 md:grid-cols-3 md:gap-y-10 xl:grid-cols-5">
+            <div className="grid grid-cols-2 gap-x-3 gap-y-9 sm:gap-x-4 md:grid-cols-3 md:gap-y-10 xl:grid-cols-5">
               {featured.map((p, i) => <ProductCard key={p.id} product={p} index={i} />)}
             </div>
           )}

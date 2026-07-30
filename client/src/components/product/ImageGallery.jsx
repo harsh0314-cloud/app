@@ -37,11 +37,11 @@ export default function ImageGallery({ images = [], name, discount, onSale }) {
               key={i}
               onClick={() => setSelected(i)}
               data-testid={`gallery-thumb-${i}`}
-              className={`h-16 w-16 shrink-0 overflow-hidden border transition-all duration-300 lg:h-20 lg:w-20 ${
+              className={`h-16 w-16 shrink-0 overflow-hidden rounded-xl border transition-all duration-300 lg:h-20 lg:w-20 ${
                 selected === i ? 'border-foreground opacity-100' : 'border-border opacity-60 hover:opacity-100'
               }`}
             >
-              <img src={img.url} alt="" className="h-full w-full object-cover" loading="lazy" />
+              <img src={img.url} alt="" className="h-full w-full object-cover transition-transform duration-300 ease-out hover:scale-[1.06]" loading="lazy" />
             </button>
           ))}
         </div>
@@ -55,7 +55,7 @@ export default function ImageGallery({ images = [], name, discount, onSale }) {
         onTouchStart={onTouchStart}
         onTouchEnd={onTouchEnd}
         data-testid="product-zoom-image"
-        className="relative aspect-[4/5] flex-1 cursor-zoom-in overflow-hidden bg-surface select-none"
+        className="relative aspect-[4/5] flex-1 cursor-zoom-in overflow-hidden rounded-[20px] bg-surface shadow-[0_20px_50px_-20px_rgba(17,17,17,0.28)] select-none"
       >
         <AnimatePresence mode="wait">
           <motion.img
