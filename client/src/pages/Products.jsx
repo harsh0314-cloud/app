@@ -133,8 +133,8 @@ export default function Products() {
       {/* Grid */}
       <div className="container-luxe py-14 md:py-20">
         {loading ? (
-          <div className="grid grid-cols-2 gap-x-5 gap-y-12 lg:grid-cols-4">
-            {[...Array(8)].map((_, i) => <div key={i} className="aspect-[4/5] animate-pulse bg-surface" />)}
+          <div className="grid grid-cols-2 gap-x-4 gap-y-9 sm:gap-x-5 md:grid-cols-3 md:gap-y-10 xl:grid-cols-5">
+            {[...Array(10)].map((_, i) => <div key={i} className="aspect-[4/5] animate-pulse rounded-2xl bg-surface" />)}
           </div>
         ) : products.length === 0 ? (
           <div className="py-24 text-center">
@@ -144,7 +144,7 @@ export default function Products() {
           </div>
         ) : (
           <>
-            <div className="grid grid-cols-2 gap-x-5 gap-y-12 lg:grid-cols-4">
+            <div className="grid grid-cols-2 gap-x-4 gap-y-9 sm:gap-x-5 md:grid-cols-3 md:gap-y-10 xl:grid-cols-5">
               {products.map((p, i) => <ProductCard key={p.id} product={p} index={i} />)}
             </div>
 

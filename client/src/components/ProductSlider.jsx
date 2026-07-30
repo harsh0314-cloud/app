@@ -136,7 +136,7 @@ export default function ProductSlider({
               <div
                 key={product.id || product.slug || i}
                 data-slide-item
-                className="w-[75%] shrink-0 snap-start sm:w-[46%] md:w-[32%] lg:w-[23.5%]"
+                className="w-[75%] shrink-0 snap-start sm:w-[46%] md:w-[31.5%] lg:w-[18.8%]"
               >
                 <ProductCard product={product} index={i} />
               </div>

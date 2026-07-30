@@ -6,7 +6,7 @@ export const Skeleton = ({ className = '' }) => (
 
 export const ProductCardSkeleton = () => (
   <div className="group">
-    <div className="animate-pulse aspect-[3/4] w-full bg-gray-200/70 dark:bg-gray-700/60" />
+    <div className="animate-pulse aspect-[4/5] w-full rounded-2xl bg-gray-200/70 dark:bg-gray-700/60" />
     <div className="mt-4 space-y-2">
       <div className="animate-pulse h-3 w-3/4 bg-gray-200/70 dark:bg-gray-700/60" />
       <div className="animate-pulse h-3 w-1/3 bg-gray-200/70 dark:bg-gray-700/60" />
@@ -15,7 +15,7 @@ export const ProductCardSkeleton = () => (
 );
 
 export const ProductGridSkeleton = ({ count = 8 }) => (
-  <div className="grid grid-cols-2 gap-x-4 gap-y-10 md:grid-cols-3 lg:grid-cols-4">
+  <div className="grid grid-cols-2 gap-x-4 gap-y-9 sm:gap-x-5 md:grid-cols-3 md:gap-y-10 xl:grid-cols-5">
     {Array.from({ length: count }).map((_, i) => (
       <ProductCardSkeleton key={i} />
     ))}

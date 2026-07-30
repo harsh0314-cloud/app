@@ -43,7 +43,7 @@ export default function PriceTag({
   return (
     <div className={`${container} ${className}`} data-testid={testId}>
       <span
-        className={`font-display font-semibold text-foreground ${s.price}`}
+        className={`font-display font-bold text-foreground ${s.price}`}
         data-testid="price-selling"
       >
         {formatPrice(data.price)}
@@ -61,7 +61,7 @@ export default function PriceTag({
 
       {data.onSale && showOff && (
         <span
-          className={`font-semibold text-green-600 dark:text-green-500 ${s.off}`}
+          className={`font-bold text-green-600 dark:text-green-500 ${s.off}`}
           data-testid="price-discount"
         >
           {data.discountPercent}% OFF
