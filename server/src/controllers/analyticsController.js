@@ -202,3 +202,183 @@ exports.exportOrdersCsv = async (req, res, next) => {
     next(error);
   }
 };
+
+
+// ─── Enterprise dashboard (single aggregated endpoint) ─────────────────────
+const EXCLUDED_STATUSES = ['CANCELLED', 'REFUNDED'];
+
+const bucketKeyFor = (date, granularity) => {
+  const d = new Date(date);
+  if (granularity === 'monthly') return d.toISOString().slice(0, 7);
+  if (granularity === 'weekly') {
+    const t = new Date(d);
+    t.setDate(t.getDate() - t.getDay());
+    return t.toISOString().slice(0, 10);
+  }
+  return dayKey(d);
+};
+
+const pctGrowth = (curr, prev) => {
+  if (!prev) return curr ? 100 : 0;
+  return ((curr - prev) / prev) * 100;
+};
+
+// GET /api/admin/analytics/dashboard?range=30&granularity=daily|weekly|monthly
+exports.getDashboardAnalytics = async (req, res, next) => {
+  try {
+    const days = parseRangeDays(req.query.range);
+    const granularity = ['daily', 'weekly', 'monthly'].includes(req.query.granularity) ? req.query.granularity : 'daily';
+    const since = new Date();
+    since.setDate(since.getDate() - (days - 1));
+    since.setHours(0, 0, 0, 0);
+    const prevSince = new Date(since);
+    prevSince.setDate(prevSince.getDate() - days);
+
+    const [orders, prevOrders, totalCustomers, newCustomerRows, prevNewCustomers, itemsInRange, inventory, recentOrders, totalProducts] = await Promise.all([
+      req.prisma.order.findMany({ where: { createdAt: { gte: since } }, select: { total: true, status: true, createdAt: true, userId: true } }),
+      req.prisma.order.findMany({ where: { createdAt: { gte: prevSince, lt: since } }, select: { total: true, status: true, createdAt: true } }),
+      req.prisma.user.count({ where: { role: 'USER' } }),
+      req.prisma.user.findMany({ where: { role: 'USER', createdAt: { gte: since } }, select: { createdAt: true } }),
+      req.prisma.user.count({ where: { role: 'USER', createdAt: { gte: prevSince, lt: since } } }),
+      req.prisma.orderItem.findMany({
+        where: { order: { createdAt: { gte: since }, status: { notIn: EXCLUDED_STATUSES } } },
+        select: {
+          productId: true, quantity: true, subtotal: true, name: true,
+          product: { select: { slug: true, images: { take: 1, select: { url: true } }, category: { select: { name: true } } } },
+        },
+      }),
+      req.prisma.inventory.findMany({
+        where: { trackInventory: true },
+        include: { product: { select: { id: true, name: true, sku: true, slug: true, images: { take: 1, select: { url: true } } } } },
+        orderBy: { quantity: 'asc' },
+      }),
+      req.prisma.order.findMany({
+        take: 8, orderBy: { createdAt: 'desc' },
+        select: { id: true, orderNumber: true, total: true, status: true, createdAt: true, user: { select: { firstName: true, lastName: true, email: true } } },
+      }),
+      req.prisma.product.count({ where: { isActive: true } }),
+    ]);
+
+    const valid = orders.filter((o) => !EXCLUDED_STATUSES.includes(o.status));
+    const prevValid = prevOrders.filter((o) => !EXCLUDED_STATUSES.includes(o.status));
+    const revenue = valid.reduce((s, o) => s + toNum(o.total), 0);
+    const prevRevenue = prevValid.reduce((s, o) => s + toNum(o.total), 0);
+    const aov = valid.length ? revenue / valid.length : 0;
+    const prevAov = prevValid.length ? prevRevenue / prevValid.length : 0;
+
+    // Continuous buckets for the whole range
+    const buckets = {};
+    for (let i = 0; i < days; i++) {
+      const d = new Date(since);
+      d.setDate(since.getDate() + i);
+      const k = bucketKeyFor(d, granularity);
+      if (!buckets[k]) buckets[k] = { key: k, revenue: 0, orders: 0, customers: 0 };
+    }
+    orders.forEach((o) => {
+      const k = bucketKeyFor(o.createdAt, granularity);
+      if (!buckets[k]) buckets[k] = { key: k, revenue: 0, orders: 0, customers: 0 };
+      if (!EXCLUDED_STATUSES.includes(o.status)) buckets[k].revenue += toNum(o.total);
+      buckets[k].orders += 1;
+    });
+    newCustomerRows.forEach((u) => {
+      const k = bucketKeyFor(u.createdAt, granularity);
+      if (buckets[k]) buckets[k].customers += 1;
+    });
+    const revenueSeries = Object.values(buckets).sort((a, b) => a.key.localeCompare(b.key));
+
+    // Previous period series aligned by index (for comparison overlay)
+    const prevBuckets = {};
+    for (let i = 0; i < days; i++) {
+      const d = new Date(prevSince);
+      d.setDate(prevSince.getDate() + i);
+      const k = bucketKeyFor(d, granularity);
+      if (!prevBuckets[k]) prevBuckets[k] = { key: k, revenue: 0 };
+    }
+    prevValid.forEach((o) => {
+      const k = bucketKeyFor(o.createdAt, granularity);
+      if (!prevBuckets[k]) prevBuckets[k] = { key: k, revenue: 0 };
+      prevBuckets[k].revenue += toNum(o.total);
+    });
+    const prevRevenueSeries = Object.values(prevBuckets).sort((a, b) => a.key.localeCompare(b.key));
+
+    // Customers who ordered in range / returning customers
+    const perUserOrders = {};
+    valid.forEach((o) => { if (o.userId) perUserOrders[o.userId] = (perUserOrders[o.userId] || 0) + 1; });
+    const purchasingCustomers = Object.keys(perUserOrders).length;
+    const returningCustomers = Object.values(perUserOrders).filter((n) => n > 1).length;
+    const conversion = totalCustomers ? (purchasingCustomers / totalCustomers) * 100 : 0;
+
+    // Sales heatmap: 7 (Sun..Sat) x 24 hours order counts
+    const heatmap = Array.from({ length: 7 }, () => Array(24).fill(0));
+    orders.forEach((o) => {
+      const d = new Date(o.createdAt);
+      heatmap[d.getDay()][d.getHours()] += 1;
+    });
+
+    // Top products & best categories (aggregated in one pass, no N+1)
+    const prodMap = {};
+    const catMap = {};
+    itemsInRange.forEach((it) => {
+      if (!prodMap[it.productId]) {
+        prodMap[it.productId] = { productId: it.productId, name: it.name, slug: it.product?.slug, image: it.product?.images?.[0]?.url || null, category: it.product?.category?.name || '—', units: 0, revenue: 0 };
+      }
+      prodMap[it.productId].units += it.quantity;
+      prodMap[it.productId].revenue += toNum(it.subtotal);
+      const cat = it.product?.category?.name || 'Uncategorised';
+      if (!catMap[cat]) catMap[cat] = { category: cat, units: 0, revenue: 0 };
+      catMap[cat].units += it.quantity;
+      catMap[cat].revenue += toNum(it.subtotal);
+    });
+    const topProducts = Object.values(prodMap).sort((a, b) => b.revenue - a.revenue).slice(0, 8);
+    const bestCategories = Object.values(catMap).sort((a, b) => b.revenue - a.revenue).slice(0, 6);
+
+    const lowStockItems = inventory.filter((i) => i.quantity <= (i.lowStockThreshold ?? 10));
+
+    res.status(200).json({
+      status: 'success',
+      data: {
+        range: days,
+        granularity,
+        kpis: {
+          revenue,
+          orders: orders.length,
+          totalCustomers,
+          newCustomers: newCustomerRows.length,
+          totalProducts,
+          aov,
+          conversion,
+          purchasingCustomers,
+          returningCustomers,
+          returningRate: purchasingCustomers ? (returningCustomers / purchasingCustomers) * 100 : 0,
+          growth: {
+            revenue: pctGrowth(revenue, prevRevenue),
+            orders: pctGrowth(orders.length, prevOrders.length),
+            aov: pctGrowth(aov, prevAov),
+            customers: pctGrowth(newCustomerRows.length, prevNewCustomers),
+          },
+          previous: { revenue: prevRevenue, orders: prevOrders.length, newCustomers: prevNewCustomers, aov: prevAov },
+        },
+        revenueSeries,
+        prevRevenueSeries,
+        heatmap,
+        topProducts,
+        bestCategories,
+        lowStock: {
+          items: lowStockItems.slice(0, 8).map((i) => ({ id: i.id, quantity: i.quantity, threshold: i.lowStockThreshold ?? 10, product: i.product })),
+          count: lowStockItems.length,
+          outOfStock: lowStockItems.filter((i) => i.quantity === 0).length,
+        },
+        recentOrders: recentOrders.map((o) => ({
+          id: o.id,
+          orderNumber: o.orderNumber,
+          total: toNum(o.total),
+          status: o.status,
+          createdAt: o.createdAt,
+          customer: `${o.user?.firstName || ''} ${o.user?.lastName || ''}`.trim() || o.user?.email || 'Guest',
+        })),
+      },
+    });
+  } catch (error) {
+    next(error);
+  }
+};

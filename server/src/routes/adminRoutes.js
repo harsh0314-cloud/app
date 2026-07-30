@@ -1,7 +1,9 @@
 const express = require('express');
+const rateLimit = require('express-rate-limit');
 const router = express.Router();
 const adminController = require('../controllers/adminController');
 const analyticsController = require('../controllers/analyticsController');
+const emailTemplateController = require('../controllers/emailTemplateController');
 const uploadController = require('../controllers/uploadController');
 const returnController = require('../controllers/returnController');
 const newsletterController = require('../controllers/newsletterController');
@@ -12,7 +14,16 @@ const { authenticate } = require('../middleware/auth');
 const { authorize } = require('../middleware/rbac'); 
 const { validate } = require('../middleware/validate');
 const { upload, handleUploadErrors } = require('../middleware/upload');
-const { productCreateSchema, productUpdateSchema, uploadDeleteSchema } = require('../validators/adminValidators');
+const { productCreateSchema, productUpdateSchema, uploadDeleteSchema, emailTemplateUpdateSchema, emailTemplateTestSchema } = require('../validators/adminValidators');
+
+// Sensitive endpoint limiter (test emails can hit the provider)
+const testEmailLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 20,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { status: 'error', message: 'Too many test emails — please try again later.' },
+});
 
 // User MUST be logged in AND must have the 'ADMIN' role
 router.use(authenticate);
@@ -31,9 +42,20 @@ router.patch('/products/:id', validate(productUpdateSchema), adminController.upd
 router.delete('/products/:id', adminController.deleteProduct);
 
 // --- ANALYTICS ---
+router.get('/analytics/dashboard', analyticsController.getDashboardAnalytics);
 router.get('/analytics/sales', analyticsController.getSalesAnalytics);
 router.get('/analytics/revenue', analyticsController.getRevenueAnalytics);
 router.get('/analytics/customers', analyticsController.getCustomerAnalytics);
+
+// --- EMAIL TEMPLATES ---
+router.get('/email-templates', emailTemplateController.listTemplates);
+router.get('/email-templates/:key', emailTemplateController.getTemplate);
+router.put('/email-templates/:key', validate(emailTemplateUpdateSchema), emailTemplateController.updateTemplate);
+router.post('/email-templates/:key/publish', emailTemplateController.publishTemplate);
+router.post('/email-templates/:key/reset', emailTemplateController.resetTemplate);
+router.get('/email-templates/:key/versions', emailTemplateController.listVersions);
+router.post('/email-templates/:key/versions/:versionId/restore', emailTemplateController.restoreVersion);
+router.post('/email-templates/:key/test', testEmailLimiter, validate(emailTemplateTestSchema), emailTemplateController.sendTestEmail);
 
 // --- INVENTORY ---
 router.get('/inventory', adminController.getAllInventory);

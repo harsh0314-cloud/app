@@ -1,5 +1,5 @@
 import { NavLink, Outlet } from 'react-router-dom';
-import { LayoutDashboard, Package, PlusCircle, Tag, Warehouse, LogOut, RotateCcw, BarChart3, ClipboardList, Mail, MessageSquare, Briefcase } from 'lucide-react';
+import { LayoutDashboard, Package, PlusCircle, Tag, Warehouse, LogOut, RotateCcw, BarChart3, ClipboardList, Mail, MailPlus, MessageSquare, Briefcase } from 'lucide-react';
 import useAuthStore from '../../store/authStore';
 import { useNavigate } from 'react-router-dom';
 
@@ -13,6 +13,7 @@ const navItems = [
   { to: '/admin/coupons', icon: Tag, label: 'Coupons' },
   { to: '/admin/returns', icon: RotateCcw, label: 'Returns' },
   { to: '/admin/newsletter', icon: Mail, label: 'Newsletter' },
+  { to: '/admin/email-templates', icon: MailPlus, label: 'Email Templates' },
   { to: '/admin/contact', icon: MessageSquare, label: 'Contact' },
   { to: '/admin/careers', icon: Briefcase, label: 'Careers' },
 ];

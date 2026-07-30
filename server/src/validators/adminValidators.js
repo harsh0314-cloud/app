@@ -33,4 +33,16 @@ const uploadDeleteSchema = z.object({
   url: z.string().min(1, 'Image url is required'),
 }).passthrough();
 
-module.exports = { productCreateSchema, productUpdateSchema, uploadDeleteSchema };
+const emailTemplateUpdateSchema = z.object({
+  subject: z.string().min(1, 'Subject is required').max(300, 'Subject too long'),
+  bodyHtml: z.string().min(1, 'Email body is required').max(100000, 'Email body too large'),
+}).passthrough();
+
+const emailTemplateTestSchema = z.object({
+  to: z.string().email('A valid recipient email is required'),
+  subject: z.string().max(300).optional(),
+  bodyHtml: z.string().max(100000).optional(),
+  variables: z.record(z.any()).optional(),
+}).passthrough();
+
+module.exports = { productCreateSchema, productUpdateSchema, uploadDeleteSchema, emailTemplateUpdateSchema, emailTemplateTestSchema };

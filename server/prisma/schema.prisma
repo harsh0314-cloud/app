@@ -679,3 +679,35 @@ model NewsletterCampaignRecipient {
   @@index([status])
   @@map("newsletter_campaign_recipients")
 }
+
+model EmailTemplate {
+  id          String   @id @default(uuid())
+  key         String   @unique
+  name        String
+  subject     String
+  bodyHtml    String   @db.Text
+  variables   Json?
+  isPublished Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  versions EmailTemplateVersion[]
+
+  @@map("email_templates")
+}
+
+model EmailTemplateVersion {
+  id         String   @id @default(uuid())
+  templateId String
+  version    Int
+  subject    String
+  bodyHtml   String   @db.Text
+  createdAt  DateTime @default(now())
+
+  template EmailTemplate @relation(fields: [templateId], references: [id], onDelete: Cascade)
+
+  @@unique([templateId, version])
+  @@index([templateId])
+  @@map("email_template_versions")
+}
+

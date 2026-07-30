@@ -4,6 +4,44 @@ const resend = process.env.RESEND_API_KEY ? new Resend(process.env.RESEND_API_KE
 const FROM = process.env.EMAIL_FROM || 'StoreX <onboarding@resend.dev>';
 const CLIENT_URL = process.env.CLIENT_URL || 'http://localhost:3000';
 
+// ─── Admin-managed templates (Email Template Editor) ──────────────────
+// When a template is PUBLISHED in the admin editor it overrides the built-in
+// copy below. Any failure falls back silently to the hard-coded defaults.
+let _templatePrisma = null;
+const getTemplatePrisma = () => {
+  if (_templatePrisma === null) {
+    try {
+      const { PrismaClient } = require('@prisma/client');
+      _templatePrisma = new PrismaClient();
+    } catch {
+      _templatePrisma = undefined;
+    }
+  }
+  return _templatePrisma;
+};
+
+const renderVars = (str, vars = {}) =>
+  String(str || '').replace(/\{\{\s*([\w.]+)\s*\}\}/g, (m, k) => (vars[k] != null && vars[k] !== '' ? String(vars[k]) : m));
+
+async function getPublishedTemplate(key) {
+  if (!key) return null;
+  try {
+    const prisma = getTemplatePrisma();
+    if (!prisma) return null;
+    return await prisma.emailTemplate.findFirst({ where: { key, isPublished: true } });
+  } catch {
+    return null;
+  }
+}
+
+const ORDER_TEMPLATE_KEYS = {
+  CONFIRMED: 'order_confirmation',
+  SHIPPED: 'order_shipped',
+  DELIVERED: 'order_delivered',
+  CANCELLED: 'order_cancelled',
+  REFUNDED: 'order_refunded',
+};
+
 const shell = (title, bodyHtml) => `
   <div style="background:#f5f5f5;padding:40px 0;font-family:Helvetica,Arial,sans-serif;">
     <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
@@ -67,6 +105,12 @@ exports.sendGeneric = async (to, subject, html, { wrap = true, title } = {}) => 
 };
 
 exports.sendWelcomeEmail = async (to, firstName = '') => {
+  const tpl = await getPublishedTemplate('welcome');
+  if (tpl) {
+    const vars = { customer_name: firstName || 'there', shop_link: `${CLIENT_URL}/products` };
+    const subject = renderVars(tpl.subject, vars);
+    return send(to, subject, shell(subject, renderVars(tpl.bodyHtml, vars)));
+  }
   const body = `
     <p style="font-size:14px;line-height:1.6;color:#444;">Hi ${firstName || 'there'}, welcome to <strong>StoreX</strong> — we're thrilled to have you.</p>
     <p style="font-size:14px;line-height:1.6;color:#444;">Explore considered essentials crafted to last. Your account is ready to go.</p>
@@ -104,9 +148,21 @@ const ORDER_STATUS_COPY = {
 };
 
 // Fire-and-forget transactional email for order status changes. No-ops safely if RESEND_API_KEY is unset.
-exports.sendOrderStatusEmail = async (to, { orderNumber, status, firstName = '', trackingNumber, items } = {}) => {
+exports.sendOrderStatusEmail = async (to, { orderNumber, status, firstName = '', trackingNumber, items, total } = {}) => {
   const copy = ORDER_STATUS_COPY[status];
   if (!copy) return { skipped: true };
+  const tpl = await getPublishedTemplate(ORDER_TEMPLATE_KEYS[status]);
+  if (tpl) {
+    const vars = {
+      customer_name: firstName || 'there',
+      order_id: orderNumber || '',
+      tracking_number: trackingNumber || '',
+      order_total: total != null ? `₹${parseFloat(total).toLocaleString('en-IN')}` : '',
+      order_link: `${CLIENT_URL}/orders`,
+    };
+    const subject = renderVars(tpl.subject, vars);
+    return send(to, subject, shell(subject, renderVars(tpl.bodyHtml, vars)));
+  }
   const link = `${CLIENT_URL}/orders`;
   const tracking = trackingNumber
     ? `<p style="font-size:13px;color:#444;margin-top:8px;">Tracking number: <strong>${trackingNumber}</strong></p>`

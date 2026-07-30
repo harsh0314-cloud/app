@@ -17,6 +17,7 @@ const SKIP_KEYS = new Set([
   'body',
   'adminReply',
   'internalNotes',
+  'bodyHtml',
 ]);
 
 const cleanString = (str) => {

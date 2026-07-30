@@ -25,6 +25,7 @@ const AdminInventory = lazy(() => import('./pages/admin/AdminInventory'));
 const AdminOrders = lazy(() => import('./pages/admin/AdminOrders'));
 const AdminReturns = lazy(() => import('./pages/admin/AdminReturns'));
 const AdminNewsletter = lazy(() => import('./pages/admin/AdminNewsletter'));
+const AdminEmailTemplates = lazy(() => import('./pages/admin/AdminEmailTemplates'));
 const AdminContact = lazy(() => import('./pages/admin/AdminContact'));
 const AdminCareers = lazy(() => import('./pages/admin/AdminCareers'));
 // Public marketing pages
@@ -117,6 +118,7 @@ function AnimatedRoutes() {
               <Route path="coupons" element={<AdminCoupons />} />
               <Route path="returns" element={<AdminReturns />} />
               <Route path="newsletter" element={<AdminNewsletter />} />
+              <Route path="email-templates" element={<AdminEmailTemplates />} />
               <Route path="contact" element={<AdminContact />} />
               <Route path="careers" element={<AdminCareers />} />
             </Route>
