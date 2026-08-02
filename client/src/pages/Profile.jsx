@@ -19,6 +19,7 @@ import {
 import AddressManager from '../components/profile/AddressManager';
 import NotificationsPanel from '../components/profile/NotificationsPanel';
 import RecentlyViewed from '../components/RecentlyViewed';
+import { Sparkles } from "lucide-react";
 
 const passwordSchema = z.object({
   currentPassword: z.string().min(1, 'Required'),
