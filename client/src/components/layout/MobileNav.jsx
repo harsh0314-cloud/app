@@ -5,6 +5,7 @@ import { Home, LayoutGrid, Search, Heart, ShoppingBag, User } from 'lucide-react
 import useAuthStore from '../../store/authStore';
 import { useCartStore } from '../../store/cartStore';
 import useWishlist from '../../hooks/useWishlist';
+import { isStaff } from '../../lib/permissions';
 
 const navItems = [
   { label: 'Home', icon: Home, to: '/' },
@@ -20,7 +21,7 @@ export default function MobileNav({ onOpenSearch, onOpenCategories }) {
    const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState('/');
   
-  const { isAuthenticated } = useAuthStore();
+  const { isAuthenticated, user } = useAuthStore();
   const cartItems = useCartStore((s) => s.items);
   const { count: wishCount } = useWishlist();
 
@@ -47,8 +48,10 @@ export default function MobileNav({ onOpenSearch, onOpenCategories }) {
           const isActive = item.to === activeTab || 
                           (item.to !== '/' && activeTab.startsWith(item.to));
           
-          // Dynamic Profile Link
-          const profileLink = isAuthenticated ? item.to : '/login';
+          // Dynamic Profile Link — staff go to /admin, customers to /profile, unauth to /login
+          const profileLink = isAuthenticated
+            ? (isStaff(user) ? '/admin' : '/profile')
+            : '/login';
 
           const content = (
             <div className="flex flex-col items-center gap-0.5 relative">

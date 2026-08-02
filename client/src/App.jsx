@@ -45,6 +45,7 @@ const AdminAnalytics = lazy(() => import('./pages/admin/AdminAnalytics'));
 const PaymentSuccess = lazy(() => import('./pages/PaymentSuccess'));
 const PaymentCancel = lazy(() => import('./pages/PaymentCancel'));
 const Profile = lazy(() => import('./pages/Profile'));
+import CustomerOnlyRoute from './components/CustomerOnlyRoute';
 const OrderDetails = lazy(() => import('./pages/OrderDetails'));
 const Cart = lazy(() => import('./pages/Cart'));
 const Wishlist = lazy(() => import('./pages/Wishlist'));
@@ -98,7 +99,7 @@ function AnimatedRoutes() {
             <Route path="/orders/:orderId/return" element={<Page><ReturnRequestForm /></Page>} />
             <Route path="/returns" element={<Page><MyReturns /></Page>} />
             <Route path="/returns/:id" element={<Page><ReturnDetails /></Page>} />
-            <Route path="/profile" element={<Page><Profile /></Page>} />
+            <Route path="/profile" element={<CustomerOnlyRoute><Page><Profile /></Page></CustomerOnlyRoute>} />
             <Route path="/payment/success" element={<PaymentSuccess />} />
             <Route path="/payment/cancel" element={<Page><PaymentCancel /></Page>} />
 

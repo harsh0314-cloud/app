@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import useAuthStore from '../store/authStore';
+import { isStaff } from '../lib/permissions';
 import toast from 'react-hot-toast';
 
 const IMG = 'https://images.pexels.com/photos/20238933/pexels-photo-20238933.jpeg?auto=compress&cs=tinysrgb&w=1200';
@@ -18,24 +19,10 @@ export default function Login() {
     setLoading(true);
     try {
       await login({ email, password });
-
+      // Staff roles always land on /admin; customers on home.
+      const signedInUser = useAuthStore.getState().user;
       toast.success('Welcome back');
-
-      const user = useAuthStore.getState().user;
-
-      const staffRoles = [
-      "SUPER_ADMIN",
-      "ADMIN",
-      "MANAGER",
-      "STAFF",
-      "SUPPORT"
-    ];
-
-    if (staffRoles.includes(user?.role)) {
-      navigate('/admin');
-    } else {
-      navigate('/');
-    }
+      navigate(isStaff(signedInUser) ? '/admin' : '/', { replace: true });
     } catch (error) {
       toast.error(error.message || 'Login failed');
     } finally { setLoading(false); }

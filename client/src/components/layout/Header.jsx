@@ -8,6 +8,7 @@ import useWishlist from '../../hooks/useWishlist';
 import CartDrawer from '../CartDrawer';
 import PriceTag from '../PriceTag';
 import api from '../../services/api';
+import { isStaff } from '../../lib/permissions';
 
 const NAV = [
   { label: 'Home', to: '/' },
@@ -143,7 +144,7 @@ export default function Header() {
               </button>
               {isAuthenticated ? (
                 <div className="hidden items-center gap-2 md:flex">
-                  <Link to={user?.role === 'ADMIN' ? '/admin' : '/profile'} data-testid="account-link" className={iconBtn} aria-label="Account"><User size={19} /></Link>
+                  <Link to={isStaff(user) ? '/admin' : '/profile'} data-testid="account-link" className={iconBtn} aria-label="Account"><User size={19} /></Link>
                   <button onClick={() => { logout(); navigate('/'); }} data-testid="logout-btn" className="link-underline text-[11px] font-semibold uppercase tracking-luxe-sm">Logout</button>
                 </div>
               ) : (
@@ -298,9 +299,10 @@ export default function Header() {
                     
                     {isAuthenticated ? (
                       <>
-                        <Link to="/profile" onClick={() => setMenuOpen(false)} className="block py-3 border-b border-white/10 hover:text-gold transition-colors">My Account</Link>
-                        {user?.role === 'ADMIN' && (
-                          <Link to="/admin" onClick={() => setMenuOpen(false)} className="block py-3 border-b border-white/10 hover:text-gold transition-colors">Admin Dashboard</Link>
+                        {isStaff(user) ? (
+                          <Link to="/admin" onClick={() => setMenuOpen(false)} data-testid="mobile-menu-admin-link" className="block py-3 border-b border-white/10 hover:text-gold transition-colors">Admin Dashboard</Link>
+                        ) : (
+                          <Link to="/profile" onClick={() => setMenuOpen(false)} data-testid="mobile-menu-profile-link" className="block py-3 border-b border-white/10 hover:text-gold transition-colors">My Account</Link>
                         )}
                         <button onClick={() => { logout(); navigate('/'); setMenuOpen(false); }} className="block w-full text-left py-3 text-red-400 hover:text-red-300 transition-colors">
                           Logout
