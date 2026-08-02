@@ -18,8 +18,24 @@ export default function Login() {
     setLoading(true);
     try {
       await login({ email, password });
+
       toast.success('Welcome back');
+
+      const user = useAuthStore.getState().user;
+
+      const staffRoles = [
+      "SUPER_ADMIN",
+      "ADMIN",
+      "MANAGER",
+      "STAFF",
+      "SUPPORT"
+    ];
+
+    if (staffRoles.includes(user?.role)) {
+      navigate('/admin');
+    } else {
       navigate('/');
+    }
     } catch (error) {
       toast.error(error.message || 'Login failed');
     } finally { setLoading(false); }
