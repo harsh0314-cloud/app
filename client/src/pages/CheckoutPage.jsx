@@ -6,7 +6,7 @@ import api from '../services/api';
 import toast from 'react-hot-toast';
 import { fmtPrice } from '../components/ProductCard';
 import PriceTag from '../components/PriceTag';
-import { Tag, X, Truck, Receipt, ShieldCheck, User } from 'lucide-react';
+import { Tag, X, Truck, Receipt, ShieldCheck, User, Sparkles } from 'lucide-react';
 
 const input = 'w-full border-0 border-b border-input bg-transparent px-0 py-2.5 text-sm focus:border-foreground focus:ring-0';
 const label = 'overline text-muted-foreground';
@@ -35,6 +35,27 @@ export default function CheckoutPage() {
   const [couponLoading, setCouponLoading] = useState(false);
   const [loading, setLoading] = useState(false);
   const [scriptLoaded, setScriptLoaded] = useState(false);
+  // ── Loyalty (Phase 1) ─────────────────────────────────────
+  const [loyaltyWallet, setLoyaltyWallet] = useState(null);
+  const [loyaltySettings, setLoyaltySettings] = useState(null);
+  const [pointsInput, setPointsInput] = useState('');
+  const [pointsRedeemed, setPointsRedeemed] = useState(0);
+  const [pointsDiscount, setPointsDiscount] = useState(0);
+  const [redeemLoading, setRedeemLoading] = useState(false);
+
+  useEffect(() => {
+    // Fetch wallet + settings (silently ignore if not authed / disabled)
+    (async () => {
+      try {
+        const [w, s] = await Promise.all([
+          api.get('/loyalty/wallet').catch(() => null),
+          api.get('/loyalty/settings').catch(() => null),
+        ]);
+        if (w?.data?.wallet) setLoyaltyWallet(w.data.wallet);
+        if (s?.data)         setLoyaltySettings(s.data);
+      } catch { /* ignore */ }
+    })();
+  }, []);
 
   useEffect(() => {
     const loadScript = () => {
@@ -52,8 +73,26 @@ export default function CheckoutPage() {
 
   const tax = cartSubtotal * 0.18;
   const shipping = cartSubtotal > 500 ? 0 : 99;
-  const finalTotal = Math.max(0, cartSubtotal + tax + shipping - discount).toFixed(2);
+  const finalTotal = Math.max(0, cartSubtotal + tax + shipping - discount - pointsDiscount).toFixed(2);
   const updateForm = (field, value) => setForm({ ...form, [field]: value });
+
+  const previewPoints = async () => {
+    const pts = parseInt(pointsInput);
+    if (!Number.isFinite(pts) || pts <= 0) { toast.error('Enter a valid points amount'); return; }
+    setRedeemLoading(true);
+    try {
+      const res = await api.post('/loyalty/preview-redeem', { points: pts, subtotal: cartSubtotal - discount });
+      const d = res.data;
+      if (!d.ok) { toast.error(d.error); setPointsRedeemed(0); setPointsDiscount(0); return; }
+      setPointsRedeemed(d.points);
+      setPointsDiscount(d.discount);
+      toast.success(`Applied ${d.points} points (₹${d.discount.toFixed(2)} off)`);
+    } catch (e) {
+      toast.error(e.message || 'Failed to apply points');
+      setPointsRedeemed(0); setPointsDiscount(0);
+    } finally { setRedeemLoading(false); }
+  };
+  const removePoints = () => { setPointsInput(''); setPointsRedeemed(0); setPointsDiscount(0); };
 
   const handleApplyCoupon = async () => {
     if (!couponCode.trim()) return;
@@ -100,7 +139,8 @@ export default function CheckoutPage() {
       const orderPayload = { 
         ...form, 
         paymentMethod: paymentMethod === 'COD' ? 'CASH_ON_DELIVERY' : 'RAZORPAY',
-        couponCode: appliedCoupon?.code || null
+        couponCode: appliedCoupon?.code || null,
+        loyaltyPointsToRedeem: pointsRedeemed > 0 ? pointsRedeemed : null,
       };
 
       if (paymentMethod === 'COD') {
@@ -109,7 +149,7 @@ export default function CheckoutPage() {
         await fetchCart();
         navigate(`/payment/success?orderId=${response.data.order.id}`);
       } else {
-        const res = await api.post('/payments/create-razorpay-order', { ...form, couponCode: appliedCoupon?.code });
+        const res = await api.post('/payments/create-razorpay-order', { ...form, couponCode: appliedCoupon?.code, loyaltyPointsToRedeem: pointsRedeemed > 0 ? pointsRedeemed : null });
 
         if (!res.data || !res.data.key) {
           throw new Error("Failed to initialize payment gateway.");
@@ -270,6 +310,38 @@ export default function CheckoutPage() {
             )}
           </div>
 
+          {/* Loyalty points redeem */}
+          {loyaltyWallet && loyaltySettings?.isEnabled && loyaltyWallet.pointsBalance >= (loyaltySettings.minRedeemPoints || 100) && (
+            <div className="border-b border-border pb-6" data-testid="checkout-loyalty-section">
+              {pointsRedeemed > 0 ? (
+                <div className="flex items-center justify-between rounded-lg bg-indigo-50 dark:bg-indigo-900/20 border border-indigo-200 dark:border-indigo-800 p-3">
+                  <div className="flex items-center gap-2">
+                    <Sparkles size={16} className="text-indigo-600"/>
+                    <div>
+                      <p className="text-sm font-semibold text-indigo-700">{pointsRedeemed} points applied</p>
+                      <p className="text-xs text-indigo-600">You saved {fmtPrice(pointsDiscount)}</p>
+                    </div>
+                  </div>
+                  <button onClick={removePoints} data-testid="checkout-loyalty-remove" className="p-1 hover:bg-indigo-100 rounded"><X size={16} className="text-indigo-600"/></button>
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="flex items-center gap-1 text-muted-foreground"><Sparkles size={12}/> Loyalty balance</span>
+                    <span className="font-semibold" data-testid="checkout-loyalty-balance">{loyaltyWallet.pointsBalance} pts</span>
+                  </div>
+                  <div className="flex gap-2">
+                    <input type="number" min={loyaltySettings.minRedeemPoints || 100} max={loyaltyWallet.pointsBalance} value={pointsInput} onChange={(e) => setPointsInput(e.target.value)} placeholder={`Min ${loyaltySettings.minRedeemPoints} pts`} data-testid="checkout-loyalty-input" className="flex-1 border border-border rounded-lg px-3 py-2 text-sm"/>
+                    <button type="button" onClick={previewPoints} disabled={redeemLoading || !pointsInput} data-testid="checkout-loyalty-apply" className="px-4 py-2 border border-foreground text-[11px] font-semibold uppercase tracking-luxe-sm hover:bg-foreground hover:text-white transition-colors disabled:opacity-50">
+                      {redeemLoading ? '...' : 'Redeem'}
+                    </button>
+                  </div>
+                  <p className="text-xs text-muted-foreground">100 pts = ₹10 · max {loyaltySettings.maxRedeemPercent}% of subtotal</p>
+                </div>
+              )}
+            </div>
+          )}
+
           {/* Totals */}
           <div className="space-y-3 text-sm">
             <div className="flex justify-between"><span className="text-muted-foreground">Subtotal</span><span>{fmtPrice(cartSubtotal)}</span></div>
@@ -277,6 +349,12 @@ export default function CheckoutPage() {
               <div className="flex justify-between text-green-600">
                 <span className="flex items-center gap-1"><Tag size={14} /> Discount</span>
                 <span>-{fmtPrice(discount)}</span>
+              </div>
+            )}
+            {pointsDiscount > 0 && (
+              <div className="flex justify-between text-indigo-600" data-testid="checkout-loyalty-line">
+                <span className="flex items-center gap-1"><Sparkles size={14}/> Loyalty ({pointsRedeemed} pts)</span>
+                <span>-{fmtPrice(pointsDiscount)}</span>
               </div>
             )}
             <div className="flex justify-between"><span className="text-muted-foreground flex items-center gap-1"><Truck size={14} /> Shipping</span><span>{shipping === 0 ? 'Free' : fmtPrice(shipping)}</span></div>

@@ -62,6 +62,21 @@ exports.register = async (req, res, next) => {
     const token = generateToken(user.id, user.role);
     const refreshToken = await issueRefreshToken(req.prisma, user.id, req, res);
 
+    // Award registration bonus (best-effort, never blocks the response)
+    try {
+      const loyalty = require('../utils/loyalty');
+      const settings = await loyalty.getSettings(req.prisma);
+      if (settings.isEnabled && settings.registrationBonus > 0) {
+        await req.prisma.$transaction((tx) => loyalty.credit(tx, user.id, settings.registrationBonus, {
+          type: 'EARN',
+          reason: 'Registration bonus',
+          description: `Welcome bonus of ${settings.registrationBonus} points`,
+          referenceType: 'Registration',
+          settings,
+        }));
+      }
+    } catch (e) { console.error('[loyalty] registration bonus failed:', e.message); }
+
     // Audit trail
     try {
       const { logAudit, ACTIONS } = require('../utils/audit');

@@ -33,6 +33,7 @@ const sidebarLinks = [
   { id: 'orders', label: 'My Orders', icon: Package },
   { id: 'returns', label: 'Returns & Exchanges', icon: RotateCcw },
   { id: 'wishlist', label: 'Wishlist', icon: Heart },
+  { id: 'loyalty', label: 'Loyalty Points', icon: Sparkles },
   { id: 'addresses', label: 'Addresses', icon: MapPin },
   { id: 'coupons', label: 'Coupons', icon: Tag },
   { id: 'rewards', label: 'Rewards', icon: Trophy },
@@ -546,6 +547,7 @@ export default function Profile() {
                     />
                   )}
                   {activeTab === 'settings' && <SettingsTab user={user} />}
+                  {activeTab === 'loyalty'  && <LoyaltyPanel />}
 
                   {activeTab === 'addresses' && <AddressManager />}
                   {activeTab === 'coupons' && <EmptyState icon={Tag} title="No coupons available" description="You don't have any coupons right now. Check back later for exclusive offers!" />}

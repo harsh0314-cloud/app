@@ -28,6 +28,7 @@ const returnRoutes = require('./src/routes/returnRoutes');
 const newsletterRoutes = require('./src/routes/newsletterRoutes');
 const contactRoutes = require('./src/routes/contactRoutes');
 const careersRoutes = require('./src/routes/careersRoutes');
+const loyaltyRoutes = require('./src/routes/loyaltyRoutes');
 
 const app = express();
 const prisma = new PrismaClient();
@@ -127,6 +128,7 @@ app.use('/api/returns', returnRoutes);
 app.use('/api/newsletter', newsletterRoutes);
 app.use('/api/contact', contactRoutes);
 app.use('/api/careers', careersRoutes);
+app.use('/api/loyalty', loyaltyRoutes);
 app.use('*', (req, res) => {
   res.status(404).json({ error: `Route ${req.originalUrl} not found` });
 });
@@ -137,6 +139,10 @@ const PORT = process.env.PORT || 5000;
 
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT} in ${process.env.NODE_ENV} mode`);
+  // Kick off the loyalty-points expiry cron
+  try {
+    require('./src/jobs/loyaltyExpiryJob').start(prisma);
+  } catch (e) { console.error('[cron] failed to start loyalty expiry job:', e.message); }
 });
 
 module.exports = app;

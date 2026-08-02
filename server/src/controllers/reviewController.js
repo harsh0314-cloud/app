@@ -114,6 +114,21 @@ const createReview = async (req, res, next) => {
       status: 'success',
       data: review
     });
+
+    // Award review loyalty points (only for verified purchases, non-blocking).
+    if (hasOrdered) {
+      try {
+        const loyalty = require('../utils/loyalty');
+        const settings = await loyalty.getSettings(req.prisma);
+        if (settings.isEnabled && settings.reviewBonus > 0) {
+          await req.prisma.$transaction((tx) => loyalty.credit(tx, userId, settings.reviewBonus, {
+            type: 'EARN', reason: 'Product review',
+            description: `Review bonus: ${settings.reviewBonus} points`,
+            referenceType: 'Review', referenceId: review.id, settings,
+          }));
+        }
+      } catch (e) { console.error('[loyalty] review bonus failed:', e.message); }
+    }
   } catch (err) {
     next(err);
   }

@@ -31,6 +31,7 @@ const AdminCareers = lazy(() => import('./pages/admin/AdminCareers'));
 const AdminAuditLogs = lazy(() => import('./pages/admin/AdminAuditLogs'));
 const AdminUsers = lazy(() => import('./pages/admin/AdminUsers'));
 const AdminImportExport = lazy(() => import('./pages/admin/AdminImportExport'));
+const AdminLoyalty = lazy(() => import('./pages/admin/AdminLoyalty'));
 const Unauthorized = lazy(() => import('./pages/Unauthorized'));
 // Public marketing pages
 const Contact = lazy(() => import('./pages/Contact'));
@@ -130,6 +131,7 @@ function AnimatedRoutes() {
               <Route path="users" element={<ProtectedAdminRoute perm="user.view"><AdminUsers /></ProtectedAdminRoute>} />
               <Route path="audit-logs" element={<ProtectedAdminRoute perm="audit_log.view"><AdminAuditLogs /></ProtectedAdminRoute>} />
               <Route path="import-export" element={<ProtectedAdminRoute anyOf={["import","export"]}><AdminImportExport /></ProtectedAdminRoute>} />
+              <Route path="loyalty" element={<ProtectedAdminRoute perm="loyalty.view"><AdminLoyalty /></ProtectedAdminRoute>} />
             </Route>
           </Routes>
         </AnimatePresence>

@@ -515,6 +515,37 @@ exports.updateOrderStatus = async (req, res, next) => {
       include: { user: { select: { id: true, email: true, firstName: true } } },
     });
 
+    // Award loyalty points on DELIVERED (best-effort, non-blocking).
+    if (status === 'DELIVERED' && order.userId && !order.loyaltyPointsAwarded) {
+      try {
+        const loyalty = require('../utils/loyalty');
+        const settings = await loyalty.getSettings(prisma);
+        if (settings.isEnabled) {
+          const earnBase = Number(order.subtotal) - Number(order.discount || 0);
+          const earnPoints = loyalty.rupeesToPoints(earnBase, settings);
+          const deliveredCount = await prisma.order.count({ where: { userId: order.userId, status: 'DELIVERED', loyaltyPointsAwarded: true } });
+          const isFirst = deliveredCount === 0;
+          await prisma.$transaction(async (tx) => {
+            if (earnPoints > 0) {
+              await loyalty.credit(tx, order.userId, earnPoints, {
+                type: 'EARN', reason: 'Order delivered',
+                description: `Earned ${earnPoints} points for ${order.orderNumber}`,
+                referenceType: 'Order', referenceId: order.id, settings,
+              });
+            }
+            if (isFirst && settings.firstOrderBonus > 0) {
+              await loyalty.credit(tx, order.userId, settings.firstOrderBonus, {
+                type: 'EARN', reason: 'First-order bonus',
+                description: `First delivered order bonus: ${settings.firstOrderBonus} points`,
+                referenceType: 'Order', referenceId: order.id, settings,
+              });
+            }
+            await tx.order.update({ where: { id: order.id }, data: { loyaltyPointsAwarded: true } });
+          });
+        }
+      } catch (e) { console.error('[loyalty] award-on-delivered failed:', e.message); }
+    }
+
     // In-app notification + transactional email (best-effort, never blocks the response)
     if (order.userId) {
       prisma.notification.create({

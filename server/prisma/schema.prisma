@@ -43,6 +43,13 @@ enum CouponType {
   FIXED
 }
 
+enum LoyaltyTransactionType {
+  EARN
+  REDEEM
+  EXPIRE
+  ADJUSTMENT
+}
+
 model User {
   id            String   @id @default(uuid())
   email         String   @unique
@@ -70,6 +77,7 @@ model User {
   verificationTokens VerificationToken[]
   returnRequests     ReturnRequest[]
   walletTransactions WalletTransaction[]
+  loyaltyWallet      LoyaltyWallet?
 
   @@index([email])
   @@index([role])
@@ -328,6 +336,9 @@ model Order {
   shippedAt      DateTime?
   deliveredAt    DateTime?
   cancelledAt    DateTime?
+  loyaltyPointsRedeemed Int?
+  loyaltyPointsDiscount Decimal? @db.Decimal(10, 2)
+  loyaltyPointsAwarded  Boolean  @default(false)
   createdAt      DateTime      @default(now())
   updatedAt      DateTime      @updatedAt
 
@@ -760,5 +771,69 @@ model UserPermissionOverride {
   updatedAt  DateTime @updatedAt
 
   @@map("user_permission_overrides")
+}
+
+// ────────────────────────────────────────────────────────────
+// Loyalty / Rewards Program
+// ────────────────────────────────────────────────────────────
+
+model LoyaltyWallet {
+  id             String   @id @default(uuid())
+  userId         String   @unique
+  pointsBalance  Int      @default(0)
+  totalEarned    Int      @default(0)
+  totalRedeemed  Int      @default(0)
+  totalExpired   Int      @default(0)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  user         User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
+  transactions LoyaltyTransaction[]
+
+  @@map("loyalty_wallets")
+}
+
+model LoyaltyTransaction {
+  id            String                 @id @default(uuid())
+  walletId      String
+  userId        String
+  type          LoyaltyTransactionType
+  points        Int                    // Always POSITIVE magnitude. Direction implied by `type`.
+  consumed      Int                    @default(0) // For EARN: how many points from this batch have been spent (FIFO).
+  balanceAfter  Int
+  reason        String
+  description   String?
+  referenceId   String?
+  referenceType String?
+  expiresAt     DateTime?              // populated on EARN
+  createdBy     String?                // admin userId for manual ADJUSTMENT
+  createdAt     DateTime @default(now())
+
+  wallet LoyaltyWallet @relation(fields: [walletId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([walletId])
+  @@index([type])
+  @@index([expiresAt])
+  @@index([createdAt])
+  @@map("loyalty_transactions")
+}
+
+// Singleton config row (id = "singleton"). Admin edits earn/redeem rules here.
+model LoyaltySettings {
+  id                  String   @id @default("singleton")
+  earnRatePerRupee    Float    @default(0.1)   // pts per ₹1 spent  (0.1 => ₹10 = 1pt)
+  redeemValuePerPoint Float    @default(0.1)   // ₹ per pt          (0.1 => 100pts = ₹10)
+  minRedeemPoints     Int      @default(100)
+  maxRedeemPercent    Int      @default(50)    // percent of order subtotal
+  expiryDays          Int      @default(365)
+  registrationBonus   Int      @default(100)
+  firstOrderBonus     Int      @default(500)
+  reviewBonus         Int      @default(50)
+  photoReviewBonus    Int      @default(100)
+  isEnabled           Boolean  @default(true)
+  updatedAt           DateTime @updatedAt
+
+  @@map("loyalty_settings")
 }
 

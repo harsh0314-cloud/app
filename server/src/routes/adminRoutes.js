@@ -13,6 +13,7 @@ const careersController = require('../controllers/careersController');
 const auditLogController = require('../controllers/auditLogController');
 const userMgmtController = require('../controllers/userManagementController');
 const importExportController = require('../controllers/importExportController');
+const adminLoyaltyController = require('../controllers/adminLoyaltyController');
 const multer = require('multer');
 const { authenticate } = require('../middleware/auth');
 const { authorize, requireStaff, requirePermission } = require('../middleware/rbac');
@@ -136,6 +137,15 @@ router.get('/audit-logs/stats',     requirePermission(P.AUDIT_LOG_VIEW),   audit
 router.get('/audit-logs/export',    requirePermission(P.AUDIT_LOG_EXPORT), auditLogController.exportAuditLogs);
 router.get('/audit-logs/:id',       requirePermission(P.AUDIT_LOG_VIEW),   auditLogController.getAuditLog);
 router.patch('/audit-logs/:id',     requirePermission(P.AUDIT_LOG_VIEW),   auditLogController.updateAuditNotes);
+
+// --- LOYALTY ---
+router.get('/loyalty/stats',                    requirePermission(P.LOYALTY_VIEW),     adminLoyaltyController.getStats);
+router.get('/loyalty/settings',                 requirePermission(P.LOYALTY_VIEW),     adminLoyaltyController.getSettings);
+router.patch('/loyalty/settings',               requirePermission(P.LOYALTY_SETTINGS), adminLoyaltyController.updateSettings);
+router.get('/loyalty/transactions',             requirePermission(P.LOYALTY_VIEW),     adminLoyaltyController.listTransactions);
+router.get('/loyalty/wallets',                  requirePermission(P.LOYALTY_VIEW),     adminLoyaltyController.listWallets);
+router.get('/loyalty/wallets/:userId',          requirePermission(P.LOYALTY_VIEW),     adminLoyaltyController.getWallet);
+router.post('/loyalty/wallets/:userId/adjust',  requirePermission(P.LOYALTY_MANAGE),   adminLoyaltyController.adjustWallet);
 
 // --- CATEGORIES & BRANDS ---
 router.get('/categories', async (req, res) => {

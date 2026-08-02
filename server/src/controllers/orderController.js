@@ -108,7 +108,8 @@ exports.generateInvoice = async (req, res, next) => {
 
 exports.createOrder = async (req, res, next) => {
   try {
-    const { firstName, lastName, phone, addressLine1, city, state, postalCode, country, couponCode, paymentMethod } = req.body;
+    const { firstName, lastName, phone, addressLine1, city, state, postalCode, country, couponCode, paymentMethod, loyaltyPointsToRedeem } = req.body;
+    const loyalty = require('../utils/loyalty');
 
     const cart = await req.prisma.cart.findUnique({
       where: { userId: req.user.id },
@@ -159,6 +160,17 @@ exports.createOrder = async (req, res, next) => {
       }
     }
 
+    // Loyalty points redemption (optional). Validates + adds to discount before totals are computed.
+    let pointsToRedeem = 0;
+    let pointsDiscount = 0;
+    if (loyaltyPointsToRedeem && parseInt(loyaltyPointsToRedeem) > 0) {
+      const redeem = await loyalty.validateRedemption(req.prisma, req.user.id, parseInt(loyaltyPointsToRedeem), subtotal - discount);
+      if (!redeem.ok) return next(new AppError(redeem.error, 400));
+      pointsToRedeem = redeem.points;
+      pointsDiscount = redeem.discount;
+      discount += pointsDiscount;
+    }
+
     const pricing = calculateOrderTotals(subtotal, discount);
 
     const address = await req.prisma.address.create({
@@ -179,6 +191,8 @@ exports.createOrder = async (req, res, next) => {
           total: pricing.total,
           status: 'CONFIRMED',
           paymentMethod: paymentMethod || 'CASH_ON_DELIVERY',
+          loyaltyPointsRedeemed: pointsToRedeem || null,
+          loyaltyPointsDiscount: pointsDiscount ? pointsDiscount.toFixed(2) : null,
           items: {
               create: activeItems.map(item => ({
               productId: item.productId,
@@ -208,6 +222,17 @@ exports.createOrder = async (req, res, next) => {
       }
 
       await tx.cartItem.deleteMany({ where: { cartId: cart.id, savedForLater: false } });
+
+      // Debit loyalty points inside the same transaction so cart + payment + points stay consistent.
+      if (pointsToRedeem > 0) {
+        await loyalty.debit(tx, req.user.id, pointsToRedeem, {
+          type: 'REDEEM',
+          reason: 'Redeemed at checkout',
+          description: `Redeemed ${pointsToRedeem} points (₹${pointsDiscount.toFixed(2)}) on ${newOrder.orderNumber}`,
+          referenceType: 'Order',
+          referenceId: newOrder.id,
+        });
+      }
       return newOrder;
     });
 

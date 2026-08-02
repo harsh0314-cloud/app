@@ -67,6 +67,11 @@ const PERMISSIONS = Object.freeze({
   // Careers
   CAREER_VIEW: 'career.view',
   CAREER_MANAGE: 'career.manage',
+
+  // Loyalty
+  LOYALTY_VIEW: 'loyalty.view',
+  LOYALTY_MANAGE: 'loyalty.manage',
+  LOYALTY_SETTINGS: 'loyalty.settings',
 });
 
 // Wildcard grants everything (used for SUPER_ADMIN)
@@ -104,6 +109,7 @@ const ROLE_PERMISSIONS = Object.freeze({
     P.NEWSLETTER_VIEW, P.NEWSLETTER_MANAGE,
     P.CONTACT_VIEW, P.CONTACT_MANAGE,
     P.CAREER_VIEW, P.CAREER_MANAGE,
+    P.LOYALTY_VIEW, P.LOYALTY_MANAGE, P.LOYALTY_SETTINGS,
   ],
   MANAGER: [
     P.PRODUCT_VIEW, P.PRODUCT_CREATE, P.PRODUCT_UPDATE, P.PRODUCT_DELETE,
@@ -119,6 +125,7 @@ const ROLE_PERMISSIONS = Object.freeze({
     P.NEWSLETTER_VIEW,
     P.CONTACT_VIEW,
     P.CAREER_VIEW,
+    P.LOYALTY_VIEW, P.LOYALTY_MANAGE,
   ],
   STAFF: [
     P.PRODUCT_VIEW, P.PRODUCT_UPDATE,
@@ -175,4 +182,3 @@ module.exports = {
   hasPermission,
   hasAnyPermission,
 };
-

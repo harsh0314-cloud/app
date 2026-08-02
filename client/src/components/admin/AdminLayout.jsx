@@ -2,7 +2,7 @@ import { NavLink, Outlet, useNavigate } from 'react-router-dom';
 import {
   LayoutDashboard, Package, PlusCircle, Tag, Warehouse, LogOut, RotateCcw,
   BarChart3, ClipboardList, Mail, MailPlus, MessageSquare, Briefcase,
-  Shield, Users, FileText, Upload,
+  Shield, Users, FileText, Upload, Sparkles,
 } from 'lucide-react';
 import useAuthStore from '../../store/authStore';
 import { hasPermission, roleLabel, PERMISSIONS as P } from '../../lib/permissions';
@@ -22,6 +22,7 @@ const NAV_ITEMS = [
   { to: '/admin/contact',         icon: MessageSquare,   label: 'Contact',         perm: P.CONTACT_VIEW },
   { to: '/admin/careers',         icon: Briefcase,       label: 'Careers',         perm: P.CAREER_VIEW },
   { to: '/admin/users',           icon: Users,           label: 'Team & Users',    perm: P.USER_VIEW },
+  { to: '/admin/loyalty',         icon: Sparkles,        label: 'Loyalty',         perm: P.LOYALTY_VIEW },
   { to: '/admin/audit-logs',      icon: FileText,        label: 'Audit Logs',      perm: P.AUDIT_LOG_VIEW },
 ];
 
