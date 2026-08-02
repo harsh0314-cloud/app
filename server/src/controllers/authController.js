@@ -61,6 +61,17 @@ exports.register = async (req, res, next) => {
 
     const token = generateToken(user.id, user.role);
     const refreshToken = await issueRefreshToken(req.prisma, user.id, req, res);
+
+    // Audit trail
+    try {
+      const { logAudit, ACTIONS } = require('../utils/audit');
+      await logAudit(req.prisma, req, ACTIONS.REGISTER, {
+        entity: 'User', entityId: user.id, actor: user,
+        newValue: { email: user.email, role: user.role },
+        message: `New user registered: ${user.email}`,
+      });
+    } catch { /* non-blocking */ }
+
     res.status(201).json({ status: 'success', data: { user, token, refreshToken } });
   } catch (error) { next(error); }
 };
@@ -69,13 +80,40 @@ exports.login = async (req, res, next) => {
   try {
     const { email, password } = req.body;
     const user = await req.prisma.user.findUnique({ where: { email } });
-    if (!user || !user.password) return next(new AppError('Invalid email or password.', 401));
+    if (!user || !user.password) {
+      try {
+        const { logAudit, ACTIONS } = require('../utils/audit');
+        await logAudit(req.prisma, req, ACTIONS.LOGIN_FAILED, {
+          entity: 'User', userEmail: email,
+          status: 'FAILURE', message: 'Invalid email or password',
+        });
+      } catch { /* non-blocking */ }
+      return next(new AppError('Invalid email or password.', 401));
+    }
 
     const isPasswordValid = await bcrypt.compare(password, user.password);
-    if (!isPasswordValid) return next(new AppError('Invalid email or password.', 401));
+    if (!isPasswordValid) {
+      try {
+        const { logAudit, ACTIONS } = require('../utils/audit');
+        await logAudit(req.prisma, req, ACTIONS.LOGIN_FAILED, {
+          entity: 'User', entityId: user.id, userEmail: user.email, userRole: user.role,
+          status: 'FAILURE', message: 'Invalid email or password',
+        });
+      } catch { /* non-blocking */ }
+      return next(new AppError('Invalid email or password.', 401));
+    }
 
     const token = generateToken(user.id, user.role);
     const refreshToken = await issueRefreshToken(req.prisma, user.id, req, res);
+
+    try {
+      const { logAudit, ACTIONS } = require('../utils/audit');
+      await logAudit(req.prisma, req, ACTIONS.LOGIN, {
+        entity: 'User', entityId: user.id, actor: user,
+        message: `Signed in: ${user.email}`,
+      });
+    } catch { /* non-blocking */ }
+
     res.status(200).json({
       status: 'success',
       data: {
@@ -166,10 +204,25 @@ exports.refreshToken = async (req, res, next) => {
 exports.logout = async (req, res, next) => {
   try {
     const raw = req.body.refreshToken || req.cookies?.refreshToken;
+    let actor = null;
     if (raw) {
+      const session = await req.prisma.session.findUnique({ where: { token: hashToken(raw) } });
+      if (session) {
+        actor = await req.prisma.user.findUnique({
+          where: { id: session.userId },
+          select: { id: true, email: true, firstName: true, lastName: true, role: true },
+        });
+      }
       await req.prisma.session.deleteMany({ where: { token: hashToken(raw) } });
     }
     res.clearCookie('refreshToken', { httpOnly: true, secure: true, sameSite: 'none' });
+    try {
+      const { logAudit, ACTIONS } = require('../utils/audit');
+      await logAudit(req.prisma, req, ACTIONS.LOGOUT, {
+        entity: 'User', entityId: actor?.id || null, actor,
+        message: `Signed out: ${actor?.email || 'unknown'}`,
+      });
+    } catch { /* non-blocking */ }
     res.status(200).json({ status: 'success', message: 'Logged out' });
   } catch (error) { next(error); }
 };

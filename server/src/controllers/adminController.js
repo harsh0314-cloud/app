@@ -3,6 +3,7 @@ const { AppError } = require('../utils/AppError');
 const { sendOrderStatusEmail } = require('../utils/email');
 const { destroyByUrl } = require('../utils/cloudinary');
 const { validateProductPricing } = require('../utils/pricing');
+const { logAudit, ACTIONS } = require('../utils/audit');
 
 const prisma = new PrismaClient();
 
@@ -174,6 +175,13 @@ exports.createProduct = async (req, res, next) => {
       status: 'success',
       data: { product },
     });
+
+    // Audit (fire-and-forget)
+    logAudit(req.prisma, req, ACTIONS.PRODUCT_CREATE, {
+      entity: 'Product', entityId: product.id,
+      newValue: { name: product.name, sku: product.sku, slug: product.slug, price: product.price, categoryId, brandId },
+      message: `Created product ${product.name} (${product.sku})`,
+    });
   } catch (error) {
     if (error.code === 'P2002') {
       return next(new AppError('Product with this slug already exists', 400));
@@ -278,6 +286,12 @@ exports.updateProduct = async (req, res, next) => {
       status: 'success',
       data: { product: fresh || product },
     });
+
+    logAudit(req.prisma, req, ACTIONS.PRODUCT_UPDATE, {
+      entity: 'Product', entityId: id,
+      newValue: updateData,
+      message: `Updated product ${product.name}`,
+    });
   } catch (error) {
     if (error.code === 'P2025') {
       return next(new AppError('Product not found', 404));
@@ -289,6 +303,7 @@ exports.updateProduct = async (req, res, next) => {
 exports.deleteProduct = async (req, res, next) => {
   try {
     const { id } = req.params;
+    const existing = await prisma.product.findUnique({ where: { id }, select: { id: true, name: true, sku: true, slug: true } });
 
     await prisma.product.delete({
       where: { id },
@@ -298,6 +313,14 @@ exports.deleteProduct = async (req, res, next) => {
       status: 'success',
       data: null,
     });
+
+    if (existing) {
+      logAudit(req.prisma, req, ACTIONS.PRODUCT_DELETE, {
+        entity: 'Product', entityId: id,
+        previousValue: existing,
+        message: `Deleted product ${existing.name} (${existing.sku})`,
+      });
+    }
   } catch (error) {
     if (error.code === 'P2025') {
       return next(new AppError('Product not found', 404));
@@ -516,6 +539,13 @@ exports.updateOrderStatus = async (req, res, next) => {
     res.status(200).json({
       status: 'success',
       data: { order },
+    });
+
+    logAudit(req.prisma, req, ACTIONS.ORDER_STATUS_CHANGE, {
+      entity: 'Order', entityId: order.id,
+      previousValue: { status: existing.status },
+      newValue: { status: order.status, trackingNumber: order.trackingNumber || null },
+      message: `Order ${order.orderNumber}: ${existing.status} → ${order.status}`,
     });
   } catch (error) {
     if (error.code === 'P2025') {

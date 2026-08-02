@@ -9,6 +9,9 @@ datasource db {
 
 enum UserRole {
   USER
+  SUPPORT
+  STAFF
+  MANAGER
   ADMIN
   SUPER_ADMIN
 }
@@ -709,5 +712,53 @@ model EmailTemplateVersion {
   @@unique([templateId, version])
   @@index([templateId])
   @@map("email_template_versions")
+}
+
+// ────────────────────────────────────────────────────────────
+// Audit Log — permanent activity trail for compliance/security
+// ────────────────────────────────────────────────────────────
+
+model AuditLog {
+  id            String   @id @default(uuid())
+  userId        String?
+  userEmail     String?
+  userName      String?
+  userRole      String?
+  action        String   // LOGIN, LOGOUT, PRODUCT_CREATE, ORDER_STATUS_CHANGE, etc.
+  entity        String?  // Product | Order | Coupon | User | EmailTemplate | Import | Export | Settings
+  entityId      String?
+  previousValue Json?
+  newValue      Json?
+  ipAddress     String?
+  userAgent     String?  @db.Text
+  device        String?
+  browser       String?
+  status        String   @default("SUCCESS") // SUCCESS | FAILURE
+  message       String?  @db.Text
+  adminNotes    String?  @db.Text
+  createdAt     DateTime @default(now())
+
+  @@index([userId])
+  @@index([userEmail])
+  @@index([userRole])
+  @@index([action])
+  @@index([entity])
+  @@index([entityId])
+  @@index([status])
+  @@index([createdAt])
+  @@index([ipAddress])
+  @@map("audit_logs")
+}
+
+// Optional per-user permission overrides on top of role defaults
+model UserPermissionOverride {
+  id         String   @id @default(uuid())
+  userId     String   @unique
+  granted    Json     // string[] of permission keys granted in addition to role
+  revoked    Json     // string[] of permission keys revoked from role
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@map("user_permission_overrides")
 }
 

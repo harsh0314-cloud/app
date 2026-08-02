@@ -1,4 +1,5 @@
 const { AppError } = require('../utils/AppError');
+const { logAudit, ACTIONS } = require('../utils/audit');
 
 exports.validateCoupon = async (req, res, next) => {
   try {
@@ -86,6 +87,11 @@ exports.createCoupon = async (req, res, next) => {
     });
 
     res.status(201).json({ status: 'success', data: coupon });
+    logAudit(req.prisma, req, ACTIONS.COUPON_CREATE, {
+      entity: 'Coupon', entityId: coupon.id,
+      newValue: { code: coupon.code, type: coupon.type, value: coupon.value, minOrderAmount: coupon.minOrderAmount, maxDiscount: coupon.maxDiscount, isActive: coupon.isActive },
+      message: `Created coupon ${coupon.code}`,
+    });
   } catch (error) {
     if (error.code === 'P2002') {
       return next(new AppError('Coupon code already exists', 400));
@@ -99,6 +105,7 @@ exports.updateCoupon = async (req, res, next) => {
     const { id } = req.params;
     const { code, type, value, minOrderAmount, maxDiscount, usageLimit, startDate, endDate, isActive } = req.body;
 
+    const previous = await req.prisma.coupon.findUnique({ where: { id } });
     const updateData = {};
     if (code) updateData.code = code.toUpperCase();
     if (type) updateData.type = type;
@@ -116,6 +123,12 @@ exports.updateCoupon = async (req, res, next) => {
     });
 
     res.status(200).json({ status: 'success', data: coupon });
+    logAudit(req.prisma, req, ACTIONS.COUPON_UPDATE, {
+      entity: 'Coupon', entityId: id,
+      previousValue: previous ? { code: previous.code, value: previous.value, isActive: previous.isActive } : null,
+      newValue: updateData,
+      message: `Updated coupon ${coupon.code}`,
+    });
   } catch (error) {
     if (error.code === 'P2025') {
       return next(new AppError('Coupon not found', 404));
@@ -127,8 +140,14 @@ exports.updateCoupon = async (req, res, next) => {
 exports.deleteCoupon = async (req, res, next) => {
   try {
     const { id } = req.params;
+    const previous = await req.prisma.coupon.findUnique({ where: { id }, select: { code: true } });
     await req.prisma.coupon.delete({ where: { id } });
     res.status(200).json({ status: 'success', message: 'Coupon deleted' });
+    logAudit(req.prisma, req, ACTIONS.COUPON_DELETE, {
+      entity: 'Coupon', entityId: id,
+      previousValue: previous,
+      message: `Deleted coupon ${previous?.code || id}`,
+    });
   } catch (error) {
     if (error.code === 'P2025') {
       return next(new AppError('Coupon not found', 404));
@@ -149,10 +168,16 @@ exports.toggleCoupon = async (req, res, next) => {
       data: { isActive: !coupon.isActive }
     });
 
-    res.status(200).json({ 
-      status: 'success', 
+    res.status(200).json({
+      status: 'success',
       data: updated,
       message: `Coupon ${updated.isActive ? 'activated' : 'deactivated'}`
+    });
+    logAudit(req.prisma, req, ACTIONS.COUPON_TOGGLE, {
+      entity: 'Coupon', entityId: id,
+      previousValue: { isActive: coupon.isActive },
+      newValue: { isActive: updated.isActive },
+      message: `${updated.isActive ? 'Activated' : 'Deactivated'} coupon ${updated.code}`,
     });
   } catch (error) {
     next(error);

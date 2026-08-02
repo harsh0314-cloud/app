@@ -28,6 +28,10 @@ const AdminNewsletter = lazy(() => import('./pages/admin/AdminNewsletter'));
 const AdminEmailTemplates = lazy(() => import('./pages/admin/AdminEmailTemplates'));
 const AdminContact = lazy(() => import('./pages/admin/AdminContact'));
 const AdminCareers = lazy(() => import('./pages/admin/AdminCareers'));
+const AdminAuditLogs = lazy(() => import('./pages/admin/AdminAuditLogs'));
+const AdminUsers = lazy(() => import('./pages/admin/AdminUsers'));
+const AdminImportExport = lazy(() => import('./pages/admin/AdminImportExport'));
+const Unauthorized = lazy(() => import('./pages/Unauthorized'));
 // Public marketing pages
 const Contact = lazy(() => import('./pages/Contact'));
 const Careers = lazy(() => import('./pages/Careers'));
@@ -107,20 +111,24 @@ function AnimatedRoutes() {
             <Route path="/shipping"       element={<Page><Shipping /></Page>} />
             <Route path="/returns-policy" element={<Page><ReturnsPolicy /></Page>} />
             <Route path="/size-guide"     element={<Page><SizeGuide /></Page>} />
-            <Route path="/admin/add-product" element={<ProtectedAdminRoute><AddProduct /></ProtectedAdminRoute>} />
+            <Route path="/unauthorized"   element={<Page><Unauthorized /></Page>} />
+            <Route path="/admin/add-product" element={<ProtectedAdminRoute perm="product.create"><AddProduct /></ProtectedAdminRoute>} />
             <Route path="/admin" element={<ProtectedAdminRoute><AdminLayout /></ProtectedAdminRoute>}>
               <Route index element={<Dashboard />} />
-              <Route path="products" element={<ProductList />} />
-              <Route path="orders" element={<AdminOrders />} />
-              <Route path="inventory" element={<AdminInventory />} />
-              <Route path="analytics" element={<AdminAnalytics />} />
-              <Route path="add-product" element={<AddProduct />} />
-              <Route path="coupons" element={<AdminCoupons />} />
-              <Route path="returns" element={<AdminReturns />} />
-              <Route path="newsletter" element={<AdminNewsletter />} />
-              <Route path="email-templates" element={<AdminEmailTemplates />} />
-              <Route path="contact" element={<AdminContact />} />
-              <Route path="careers" element={<AdminCareers />} />
+              <Route path="products" element={<ProtectedAdminRoute perm="product.view"><ProductList /></ProtectedAdminRoute>} />
+              <Route path="orders" element={<ProtectedAdminRoute perm="order.view"><AdminOrders /></ProtectedAdminRoute>} />
+              <Route path="inventory" element={<ProtectedAdminRoute perm="inventory.view"><AdminInventory /></ProtectedAdminRoute>} />
+              <Route path="analytics" element={<ProtectedAdminRoute perm="analytics.view"><AdminAnalytics /></ProtectedAdminRoute>} />
+              <Route path="add-product" element={<ProtectedAdminRoute perm="product.create"><AddProduct /></ProtectedAdminRoute>} />
+              <Route path="coupons" element={<ProtectedAdminRoute perm="coupon.view"><AdminCoupons /></ProtectedAdminRoute>} />
+              <Route path="returns" element={<ProtectedAdminRoute perm="return.view"><AdminReturns /></ProtectedAdminRoute>} />
+              <Route path="newsletter" element={<ProtectedAdminRoute perm="newsletter.view"><AdminNewsletter /></ProtectedAdminRoute>} />
+              <Route path="email-templates" element={<ProtectedAdminRoute perm="email_template.view"><AdminEmailTemplates /></ProtectedAdminRoute>} />
+              <Route path="contact" element={<ProtectedAdminRoute perm="contact.view"><AdminContact /></ProtectedAdminRoute>} />
+              <Route path="careers" element={<ProtectedAdminRoute perm="career.view"><AdminCareers /></ProtectedAdminRoute>} />
+              <Route path="users" element={<ProtectedAdminRoute perm="user.view"><AdminUsers /></ProtectedAdminRoute>} />
+              <Route path="audit-logs" element={<ProtectedAdminRoute perm="audit_log.view"><AdminAuditLogs /></ProtectedAdminRoute>} />
+              <Route path="import-export" element={<ProtectedAdminRoute anyOf={["import","export"]}><AdminImportExport /></ProtectedAdminRoute>} />
             </Route>
           </Routes>
         </AnimatePresence>

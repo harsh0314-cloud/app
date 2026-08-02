@@ -10,11 +10,22 @@ const newsletterController = require('../controllers/newsletterController');
 const newsletterCampaignController = require('../controllers/newsletterCampaignController');
 const contactController = require('../controllers/contactController');
 const careersController = require('../controllers/careersController');
+const auditLogController = require('../controllers/auditLogController');
+const userMgmtController = require('../controllers/userManagementController');
+const importExportController = require('../controllers/importExportController');
+const multer = require('multer');
 const { authenticate } = require('../middleware/auth');
-const { authorize } = require('../middleware/rbac'); 
+const { authorize, requireStaff, requirePermission } = require('../middleware/rbac');
+const { PERMISSIONS: P } = require('../utils/permissions');
 const { validate } = require('../middleware/validate');
 const { upload, handleUploadErrors } = require('../middleware/upload');
 const { productCreateSchema, productUpdateSchema, uploadDeleteSchema, emailTemplateUpdateSchema, emailTemplateTestSchema } = require('../validators/adminValidators');
+
+// In-memory multer for CSV/XLSX imports (small files, no need for disk)
+const importUpload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 25 * 1024 * 1024 }, // 25 MB
+});
 
 // Sensitive endpoint limiter (test emails can hit the provider)
 const testEmailLimiter = rateLimit({
@@ -25,9 +36,10 @@ const testEmailLimiter = rateLimit({
   message: { status: 'error', message: 'Too many test emails — please try again later.' },
 });
 
-// User MUST be logged in AND must have the 'ADMIN' role
+// User MUST be logged in AND have any staff role. Fine-grained permission
+// checks are applied per-route below (backward-compat with legacy `authorize`).
 router.use(authenticate);
-router.use(authorize('ADMIN', 'SUPER_ADMIN')); 
+router.use(requireStaff);
 
 // --- STATS ---
 router.get('/stats', adminController.getDashboardStats);
@@ -37,9 +49,16 @@ router.post('/upload', handleUploadErrors(upload.array('images', 8)), uploadCont
 router.delete('/upload', validate(uploadDeleteSchema), uploadController.deleteImage);
 
 // --- PRODUCTS ---
-router.post('/products', validate(productCreateSchema), adminController.createProduct);
-router.patch('/products/:id', validate(productUpdateSchema), adminController.updateProduct);
-router.delete('/products/:id', adminController.deleteProduct);
+router.post('/products', requirePermission(P.PRODUCT_CREATE), validate(productCreateSchema), adminController.createProduct);
+router.patch('/products/:id', requirePermission(P.PRODUCT_UPDATE), validate(productUpdateSchema), adminController.updateProduct);
+router.delete('/products/:id', requirePermission(P.PRODUCT_DELETE), adminController.deleteProduct);
+
+// --- IMPORT / EXPORT ---
+router.get('/export/products',             requirePermission(P.EXPORT), importExportController.exportProducts);
+router.get('/import/products/template',    requirePermission(P.IMPORT), importExportController.getProductTemplate);
+router.get('/import/products/errors',      requirePermission(P.IMPORT), importExportController.downloadErrorReport);
+router.post('/import/products/preview',    requirePermission(P.IMPORT), importUpload.single('file'), importExportController.previewProductImport);
+router.post('/import/products',            requirePermission(P.IMPORT), importUpload.single('file'), importExportController.importProducts);
 
 // --- ANALYTICS ---
 router.get('/analytics/dashboard', analyticsController.getDashboardAnalytics);
@@ -100,7 +119,23 @@ router.patch('/careers/:id',  careersController.adminUpdate);
 router.delete('/careers/:id', careersController.adminDelete);
 
 // --- CUSTOMERS ---
-router.get('/customers', adminController.getAllCustomers);
+router.get('/customers', requirePermission(P.CUSTOMER_VIEW), adminController.getAllCustomers);
+
+// --- USERS / TEAM (RBAC) ---
+router.get('/users',                requirePermission(P.USER_VIEW),   userMgmtController.listUsers);
+router.get('/users/roles',          requirePermission(P.USER_VIEW),   userMgmtController.getRolesMatrix);
+router.post('/users',               requirePermission(P.USER_MANAGE), userMgmtController.createUser);
+router.patch('/users/:id',          requirePermission(P.USER_MANAGE), userMgmtController.updateUser);
+router.delete('/users/:id',         requirePermission(P.USER_MANAGE), userMgmtController.deleteUser);
+router.post('/users/:id/reset-password', requirePermission(P.USER_MANAGE), userMgmtController.resetUserPassword);
+
+// --- AUDIT LOGS ---
+router.get('/audit-logs',           requirePermission(P.AUDIT_LOG_VIEW),   auditLogController.listAuditLogs);
+router.get('/audit-logs/filters',   requirePermission(P.AUDIT_LOG_VIEW),   auditLogController.listAuditFilters);
+router.get('/audit-logs/stats',     requirePermission(P.AUDIT_LOG_VIEW),   auditLogController.getAuditStats);
+router.get('/audit-logs/export',    requirePermission(P.AUDIT_LOG_EXPORT), auditLogController.exportAuditLogs);
+router.get('/audit-logs/:id',       requirePermission(P.AUDIT_LOG_VIEW),   auditLogController.getAuditLog);
+router.patch('/audit-logs/:id',     requirePermission(P.AUDIT_LOG_VIEW),   auditLogController.updateAuditNotes);
 
 // --- CATEGORIES & BRANDS ---
 router.get('/categories', async (req, res) => {
