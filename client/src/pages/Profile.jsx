@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation, useSearchParams } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -7,7 +7,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { 
   LayoutDashboard, Package, Heart, MapPin, Tag, Trophy, 
   Star, Move, Bell, Settings, LogOut, User, ChevronRight, Edit3, Lock,
-  ShoppingCart, Trash2, RotateCcw
+  ShoppingCart, Trash2, RotateCcw, Users
 } from 'lucide-react';
 import useAuthStore from '../store/authStore';
 import { useCartStore } from '../store/cartStore';
@@ -21,6 +21,7 @@ import NotificationsPanel from '../components/profile/NotificationsPanel';
 import RecentlyViewed from '../components/RecentlyViewed';
 import { Sparkles } from "lucide-react";
 import LoyaltyPanel from "../components/profile/LoyaltyPanel";
+import ReferralsPanel from "../components/profile/ReferralsPanel";
 
 const passwordSchema = z.object({
   currentPassword: z.string().min(1, 'Required'),
@@ -36,9 +37,9 @@ const sidebarLinks = [
   { id: 'returns', label: 'Returns & Exchanges', icon: RotateCcw },
   { id: 'wishlist', label: 'Wishlist', icon: Heart },
   { id: 'loyalty', label: 'Loyalty Points', icon: Sparkles },
+  { id: 'referrals', label: 'Referrals', icon: Users },
   { id: 'addresses', label: 'Addresses', icon: MapPin },
   { id: 'coupons', label: 'Coupons', icon: Tag },
-  { id: 'rewards', label: 'Rewards', icon: Trophy },
   { id: 'reviews', label: 'Reviews', icon: Star },
   { id: 'measurements', label: 'Measurements', icon: Move },
   { id: 'notifications', label: 'Notifications', icon: Bell },
@@ -142,7 +143,7 @@ const ProfileHeader = ({ user, setActiveTab }) => (
   </div>
 );
 
-const DashboardTab = ({ orders, wishlist, loading, setActiveTab, navigate }) => (
+const DashboardTab = ({ orders, wishlist, loading, setActiveTab, navigate, loyaltyBalance }) => (
   <div>
     <SectionTitle>Account Overview</SectionTitle>
     <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6 mb-12">
@@ -155,8 +156,8 @@ const DashboardTab = ({ orders, wishlist, loading, setActiveTab, navigate }) => 
       <div onClick={() => setActiveTab('coupons')} className="cursor-pointer hover:scale-105 transition-transform">
         <StatCard title="Coupons" value="0" icon={Tag} color="bg-green-100 text-green-600" />
       </div>
-      <div onClick={() => setActiveTab('rewards')} className="cursor-pointer hover:scale-105 transition-transform">
-        <StatCard title="Reward Points" value="1,250" icon={Trophy} color="bg-purple-100 text-purple-600" />
+      <div onClick={() => setActiveTab('loyalty')} data-testid="dashboard-loyalty-stat" className="cursor-pointer hover:scale-105 transition-transform">
+        <StatCard title="Loyalty Points" value={(loyaltyBalance ?? 0).toLocaleString()} icon={Sparkles} color="bg-purple-100 text-purple-600" />
       </div>
     </div>
 
@@ -379,11 +380,32 @@ const SettingsTab = ({ user }) => {
 export default function Profile() {
   const { user, logout } = useAuthStore();
   const navigate = useNavigate();
-  const [activeTab, setActiveTab] = useState('dashboard');
+  const location = useLocation();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const initialTab = (() => {
+    const q = searchParams.get('tab');
+    if (q) return q;
+    const p = location.pathname.replace(/^\//, '');
+    if (['loyalty', 'referrals'].includes(p)) return p;
+    return 'dashboard';
+  })();
+  const [activeTab, setActiveTab] = useState(initialTab);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [orders, setOrders] = useState([]);
   const [wishlist, setWishlist] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [loyaltyBalance, setLoyaltyBalance] = useState(0);
+
+  // Fetch loyalty balance for dashboard stat card
+  useEffect(() => {
+    let mounted = true;
+    api.get('/loyalty/wallet')
+      .then((res) => {
+        if (mounted) setLoyaltyBalance(res.data?.wallet?.pointsBalance ?? 0);
+      })
+      .catch(() => {});
+    return () => { mounted = false; };
+  }, []);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -526,6 +548,7 @@ export default function Profile() {
                       loading={loading} 
                       setActiveTab={setActiveTab}
                       navigate={navigate}
+                      loyaltyBalance={loyaltyBalance}
                     />
                   )}
                   {activeTab === 'orders' && <OrdersTab orders={orders} loading={loading} navigate={navigate} />}
@@ -553,7 +576,7 @@ export default function Profile() {
 
                   {activeTab === 'addresses' && <AddressManager />}
                   {activeTab === 'coupons' && <EmptyState icon={Tag} title="No coupons available" description="You don't have any coupons right now. Check back later for exclusive offers!" />}
-                  {activeTab === 'rewards' && <ComingSoonCard title="Loyalty Rewards" description="Earn points on every purchase and redeem them for exclusive discounts." icon={Trophy} />}
+                  {activeTab === 'referrals' && <ReferralsPanel />}
                   {activeTab === 'reviews' && <EmptyState icon={Star} title="No reviews yet" description="Share your thoughts on products you've purchased to help other customers." />}
                   {activeTab === 'measurements' && <ComingSoonCard title="Size & Measurements" description="Save your body measurements for a personalized sizing recommendation." icon={Move} />}
                   {activeTab === 'notifications' && <NotificationsPanel />}

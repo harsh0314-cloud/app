@@ -29,6 +29,8 @@ const newsletterRoutes = require('./src/routes/newsletterRoutes');
 const contactRoutes = require('./src/routes/contactRoutes');
 const careersRoutes = require('./src/routes/careersRoutes');
 const loyaltyRoutes = require('./src/routes/loyaltyRoutes');
+const referralRoutes = require('./src/routes/referralRoutes');
+const adminReferralRoutes = require('./src/routes/adminReferralRoutes');
 
 const app = express();
 const prisma = new PrismaClient();
@@ -129,6 +131,8 @@ app.use('/api/newsletter', newsletterRoutes);
 app.use('/api/contact', contactRoutes);
 app.use('/api/careers', careersRoutes);
 app.use('/api/loyalty', loyaltyRoutes);
+app.use('/api/referrals', referralRoutes);
+app.use('/api/admin/referrals', adminReferralRoutes);
 app.use('*', (req, res) => {
   res.status(404).json({ error: `Route ${req.originalUrl} not found` });
 });

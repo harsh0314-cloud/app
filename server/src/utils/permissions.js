@@ -72,6 +72,10 @@ const PERMISSIONS = Object.freeze({
   LOYALTY_VIEW: 'loyalty.view',
   LOYALTY_MANAGE: 'loyalty.manage',
   LOYALTY_SETTINGS: 'loyalty.settings',
+
+  // Referrals
+  REFERRAL_VIEW: 'referral.view',
+  REFERRAL_MANAGE: 'referral.manage',
 });
 
 // Wildcard grants everything (used for SUPER_ADMIN)
@@ -110,6 +114,7 @@ const ROLE_PERMISSIONS = Object.freeze({
     P.CONTACT_VIEW, P.CONTACT_MANAGE,
     P.CAREER_VIEW, P.CAREER_MANAGE,
     P.LOYALTY_VIEW, P.LOYALTY_MANAGE, P.LOYALTY_SETTINGS,
+    P.REFERRAL_VIEW, P.REFERRAL_MANAGE,
   ],
   MANAGER: [
     P.PRODUCT_VIEW, P.PRODUCT_CREATE, P.PRODUCT_UPDATE, P.PRODUCT_DELETE,
@@ -126,6 +131,7 @@ const ROLE_PERMISSIONS = Object.freeze({
     P.CONTACT_VIEW,
     P.CAREER_VIEW,
     P.LOYALTY_VIEW, P.LOYALTY_MANAGE,
+    P.REFERRAL_VIEW,
   ],
   STAFF: [
     P.PRODUCT_VIEW, P.PRODUCT_UPDATE,

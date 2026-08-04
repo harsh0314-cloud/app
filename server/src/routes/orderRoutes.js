@@ -15,6 +15,7 @@ router.get('/my-orders', orderController.getMyOrders);
 router.get('/:id/invoice', orderController.generateInvoice);
 router.patch('/:id/cancel', orderController.cancelOrder);
 router.post('/:id/return', orderController.createReturnRequest);
+router.post('/:id/reorder', orderController.reorder);
 router.get('/:id', orderController.getOrderById);
 
 module.exports = router;

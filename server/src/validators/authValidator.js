@@ -5,6 +5,7 @@ const registerSchema = z.object({
   password: z.string().min(8, 'Password must be at least 8 characters'),
   firstName: z.string().min(1, 'First name is required'),
   lastName: z.string().min(1, 'Last name is required'),
+  referralCode: z.string().trim().min(4).max(32).optional().or(z.literal('')),
 });
 
 const loginSchema = z.object({

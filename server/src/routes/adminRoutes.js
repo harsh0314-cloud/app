@@ -147,6 +147,68 @@ router.get('/loyalty/wallets',                  requirePermission(P.LOYALTY_VIEW
 router.get('/loyalty/wallets/:userId',          requirePermission(P.LOYALTY_VIEW),     adminLoyaltyController.getWallet);
 router.post('/loyalty/wallets/:userId/adjust',  requirePermission(P.LOYALTY_MANAGE),   adminLoyaltyController.adjustWallet);
 
+// --- REORDER ANALYTICS ---
+router.get('/reorder/analytics', requirePermission(P.ANALYTICS_VIEW), async (req, res, next) => {
+  try {
+    const prisma = req.prisma;
+    // Most reordered products (proxy: products that appear in >1 delivered orders per user)
+    const days = Math.min(365, Math.max(7, parseInt(req.query.days) || 90));
+    const since = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
+
+    // Sum order-item quantities grouped by productId over delivered orders in window
+    const grouped = await prisma.orderItem.groupBy({
+      by: ['productId'],
+      where: { order: { status: 'DELIVERED', createdAt: { gte: since } } },
+      _sum: { quantity: true },
+      _count: { _all: true },
+      orderBy: { _sum: { quantity: 'desc' } },
+      take: 10,
+    });
+    const productIds = grouped.map((g) => g.productId);
+    const products = productIds.length
+      ? await prisma.product.findMany({
+          where: { id: { in: productIds } },
+          select: { id: true, name: true, slug: true, price: true, images: { where: { isPrimary: true }, take: 1 } },
+        })
+      : [];
+    const mostReordered = grouped.map((g) => {
+      const p = products.find((x) => x.id === g.productId);
+      return {
+        productId: g.productId,
+        name: p?.name || '(deleted)',
+        slug: p?.slug || null,
+        image: p?.images?.[0]?.url || null,
+        totalQuantity: g._sum.quantity || 0,
+        orderLines: g._count._all,
+      };
+    });
+
+    // Repeat purchase rate: percent of users (with >=1 delivered order) who have >=2 delivered orders
+    const usersWithOrders = await prisma.order.groupBy({
+      by: ['userId'],
+      where: { status: 'DELIVERED' },
+      _count: { _all: true },
+    });
+    const buyers = usersWithOrders.length;
+    const repeatBuyers = usersWithOrders.filter((r) => r._count._all >= 2).length;
+    const repeatPurchaseRate = buyers > 0 ? Number(((repeatBuyers / buyers) * 100).toFixed(2)) : 0;
+
+    // Reorder actions count (via audit log)
+    const reorderActions = await prisma.auditLog.count({ where: { action: 'ORDER_REORDER', createdAt: { gte: since } } });
+
+    res.status(200).json({
+      status: 'success',
+      data: {
+        windowDays: days,
+        mostReordered,
+        repeatPurchase: { buyers, repeatBuyers, repeatPurchaseRate },
+        reorderActions,
+      },
+    });
+  } catch (e) { next(e); }
+});
+
+
 // --- CATEGORIES & BRANDS ---
 router.get('/categories', async (req, res) => {
    const data = await req.prisma.category.findMany();

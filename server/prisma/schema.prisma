@@ -50,6 +50,12 @@ enum LoyaltyTransactionType {
   ADJUSTMENT
 }
 
+enum ReferralStatus {
+  PENDING
+  COMPLETED
+  REWARDED
+}
+
 model User {
   id            String   @id @default(uuid())
   email         String   @unique
@@ -64,6 +70,8 @@ model User {
   isGuest       Boolean  @default(false)
   googleId      String?  @unique
   walletBalance Decimal  @default(0) @db.Decimal(10, 2)
+  referralCode  String?  @unique
+  referredById  String?
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 
@@ -79,8 +87,16 @@ model User {
   walletTransactions WalletTransaction[]
   loyaltyWallet      LoyaltyWallet?
 
+  // Referral relations
+  referredBy         User?              @relation("UserReferrer", fields: [referredById], references: [id])
+  referredUsers      User[]             @relation("UserReferrer")
+  referralsMade      Referral[]         @relation("ReferrerRelation")
+  referralsReceived  Referral[]         @relation("ReferredRelation")
+  referralRewards    ReferralReward[]
+
   @@index([email])
   @@index([role])
+  @@index([referralCode])
   @@map("users")
 }
 
@@ -835,5 +851,49 @@ model LoyaltySettings {
   updatedAt           DateTime @updatedAt
 
   @@map("loyalty_settings")
+}
+
+
+// ────────────────────────────────────────────────────────────
+// Referral Program
+// ────────────────────────────────────────────────────────────
+
+model Referral {
+  id              String         @id @default(uuid())
+  referrerId      String
+  referredUserId  String         @unique
+  referralCode    String
+  status          ReferralStatus @default(PENDING)
+  firstOrderId    String?
+  completedAt     DateTime?
+  rewardedAt      DateTime?
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+
+  referrer     User             @relation("ReferrerRelation", fields: [referrerId], references: [id], onDelete: Cascade)
+  referredUser User             @relation("ReferredRelation", fields: [referredUserId], references: [id], onDelete: Cascade)
+  rewards      ReferralReward[]
+
+  @@index([referrerId])
+  @@index([referredUserId])
+  @@index([referralCode])
+  @@index([status])
+  @@map("referrals")
+}
+
+model ReferralReward {
+  id          String   @id @default(uuid())
+  referralId  String
+  userId      String
+  role        String   // REFERRER | REFERRED
+  points      Int
+  createdAt   DateTime @default(now())
+
+  referral Referral @relation(fields: [referralId], references: [id], onDelete: Cascade)
+  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([referralId])
+  @@index([userId])
+  @@map("referral_rewards")
 }
 

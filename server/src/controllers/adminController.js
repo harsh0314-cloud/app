@@ -544,6 +544,22 @@ exports.updateOrderStatus = async (req, res, next) => {
           });
         }
       } catch (e) { console.error('[loyalty] award-on-delivered failed:', e.message); }
+
+      // Referral reward on first successful order (idempotent inside referral util)
+      try {
+        const referralUtil = require('../utils/referral');
+        const referralResult = await referralUtil.rewardOnFirstOrder(prisma, { userId: order.userId, orderId: order.id });
+        if (referralResult && referralResult.rewarded) {
+          try {
+            const { logAudit } = require('../utils/audit');
+            await logAudit(prisma, req, 'REFERRAL_REWARDED', {
+              entity: 'Referral', entityId: referralResult.referralId,
+              newValue: { referrerId: referralResult.referrerId, referredUserId: referralResult.referredUserId, orderId: order.id },
+              message: `Referral ${referralResult.referralId} rewarded after order ${order.orderNumber}`,
+            });
+          } catch { /* non-blocking */ }
+        }
+      } catch (e) { console.error('[referral] reward-on-first-order failed:', e.message); }
     }
 
     // In-app notification + transactional email (best-effort, never blocks the response)

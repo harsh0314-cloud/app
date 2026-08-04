@@ -32,6 +32,7 @@ const useAuthStore = create(
 
         if (token && token !== 'undefined') {
           set({ token, refreshToken, user, isAuthenticated: true });
+          return response?.data || {};
         } else {
           console.error("Token extraction failed. Response:", response.data);
           throw new Error("Failed to save authentication token.");

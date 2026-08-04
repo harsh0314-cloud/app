@@ -32,6 +32,7 @@ const AdminAuditLogs = lazy(() => import('./pages/admin/AdminAuditLogs'));
 const AdminUsers = lazy(() => import('./pages/admin/AdminUsers'));
 const AdminImportExport = lazy(() => import('./pages/admin/AdminImportExport'));
 const AdminLoyalty = lazy(() => import('./pages/admin/AdminLoyalty'));
+const AdminReferrals = lazy(() => import('./pages/admin/AdminReferrals'));
 const Unauthorized = lazy(() => import('./pages/Unauthorized'));
 // Public marketing pages
 const Contact = lazy(() => import('./pages/Contact'));
@@ -101,6 +102,8 @@ function AnimatedRoutes() {
             <Route path="/returns" element={<Page><MyReturns /></Page>} />
             <Route path="/returns/:id" element={<Page><ReturnDetails /></Page>} />
             <Route path="/profile" element={<CustomerOnlyRoute><Page><Profile /></Page></CustomerOnlyRoute>} />
+            <Route path="/loyalty" element={<CustomerOnlyRoute><Page><Profile /></Page></CustomerOnlyRoute>} />
+            <Route path="/referrals" element={<CustomerOnlyRoute><Page><Profile /></Page></CustomerOnlyRoute>} />
             <Route path="/payment/success" element={<PaymentSuccess />} />
             <Route path="/payment/cancel" element={<Page><PaymentCancel /></Page>} />
 
@@ -132,6 +135,7 @@ function AnimatedRoutes() {
               <Route path="audit-logs" element={<ProtectedAdminRoute perm="audit_log.view"><AdminAuditLogs /></ProtectedAdminRoute>} />
               <Route path="import-export" element={<ProtectedAdminRoute anyOf={["import","export"]}><AdminImportExport /></ProtectedAdminRoute>} />
               <Route path="loyalty" element={<ProtectedAdminRoute perm="loyalty.view"><AdminLoyalty /></ProtectedAdminRoute>} />
+              <Route path="referrals" element={<ProtectedAdminRoute perm="referral.view"><AdminReferrals /></ProtectedAdminRoute>} />
             </Route>
           </Routes>
         </AnimatePresence>

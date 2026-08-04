@@ -1,10 +1,11 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
-import { ArrowLeft, MapPin, Download, XCircle, RotateCcw, CheckCircle2, Clock, Package, Truck, Home, ArrowRight } from 'lucide-react';
+import { ArrowLeft, MapPin, Download, XCircle, RotateCcw, CheckCircle2, Clock, Package, Truck, Home, ArrowRight, ShoppingCart, RotateCw } from 'lucide-react';
 import api from '../services/api';
 import toast from 'react-hot-toast';
 import useAuthStore from '../store/authStore';
 import { STATUS_BADGE, STATUS_LABEL } from '../lib/returnStatus';
+import ReorderSkippedModal from '../components/ReorderSkippedModal';
 
 const TRACK_STEPS = [
   { key: 'PENDING', label: 'Placed', icon: Clock },
@@ -59,6 +60,8 @@ export default function OrderDetails() {
   const [loading, setLoading] = useState(true);
   const [downloading, setDownloading] = useState(false);
   const [acting, setActing] = useState(false);
+  const [reordering, setReordering] = useState(false);
+  const [skippedInfo, setSkippedInfo] = useState(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -107,12 +110,37 @@ export default function OrderDetails() {
     } finally { setActing(false); }
   };
 
+  const handleReorder = async () => {
+    setReordering(true);
+    try {
+      const res = await api.post(`/orders/${id}/reorder`);
+      const { added, skipped, addedCount, skippedCount } = res.data || {};
+      if (addedCount > 0) {
+        toast.success(`${addedCount} product${addedCount === 1 ? '' : 's'} added to cart${skippedCount ? ` (${skippedCount} skipped)` : ''}`);
+        try {
+          const cs = (await import('../store/cartStore')).useCartStore.getState();
+          await cs.fetchCart?.();
+        } catch { /* non-blocking */ }
+      } else {
+        toast.error('No items could be added to your cart.');
+      }
+      if (skippedCount > 0) {
+        setSkippedInfo({ added, skipped, orderNumber: order.orderNumber });
+      } else if (addedCount > 0) {
+        setTimeout(() => navigate('/cart'), 700);
+      }
+    } catch (e) {
+      toast.error(e.message || 'Failed to reorder');
+    } finally { setReordering(false); }
+  };
+
   if (loading) return <div className="max-w-4xl mx-auto px-4 py-16 text-center">Loading order...</div>;
   if (!order) return <div className="text-center py-20">Order not found</div>;
 
   const isAdmin = user?.role === 'ADMIN';
   const canCancel = ['PENDING', 'CONFIRMED', 'PROCESSING'].includes(order.status);
   const canReturn = order.status === 'DELIVERED';
+  const canReorder = !isAdmin && ['DELIVERED', 'CONFIRMED', 'PROCESSING', 'SHIPPED'].includes(order.status);
   const openRequests = (order.returnRequests || []).filter((r) => !['CANCELLED', 'REJECTED', 'COMPLETED'].includes(r.status));
   const anyItemEligible = (eligibility || []).some((i) => i.isReturnable || i.isExchangeable);
   const isRefunded = order.payment?.status === 'REFUNDED' || order.status === 'REFUNDED';
@@ -148,7 +176,7 @@ export default function OrderDetails() {
           <OrderTracking order={order} />
 
           {/* Post-purchase actions */}
-          {!isAdmin && (canCancel || canReturn || openRequests.length || isRefunded) && (
+          {!isAdmin && (canCancel || canReturn || canReorder || openRequests.length || isRefunded) && (
             <div className="mb-8 rounded-xl border border-border p-5">
               <div className="flex flex-wrap items-center gap-3">
                 {canCancel && (
@@ -160,6 +188,11 @@ export default function OrderDetails() {
                   <Link to={`/orders/${id}/return`} data-testid="return-order-btn" className="inline-flex items-center gap-2 rounded-lg border border-foreground px-4 py-2.5 text-xs font-semibold uppercase tracking-wide transition-colors hover:bg-foreground hover:text-white">
                     <RotateCcw size={15} /> Return / Exchange
                   </Link>
+                )}
+                {canReorder && (
+                  <button onClick={handleReorder} disabled={reordering} data-testid="buy-again-btn" className="inline-flex items-center gap-2 rounded-lg border border-foreground bg-foreground text-white px-4 py-2.5 text-xs font-semibold uppercase tracking-wide transition-opacity hover:opacity-90 disabled:opacity-50">
+                    {reordering ? <><RotateCw size={15} className="animate-spin"/> Adding…</> : <><ShoppingCart size={15}/> Buy Again</>}
+                  </button>
                 )}
                 {isRefunded && (
                   <span data-testid="refund-badge" className="inline-flex items-center gap-2 rounded-lg bg-green-100 px-4 py-2.5 text-xs font-semibold uppercase tracking-wide text-green-700">
@@ -251,6 +284,13 @@ export default function OrderDetails() {
           </div>
         </div>
       </div>
+
+      <ReorderSkippedModal
+        open={!!skippedInfo}
+        onClose={() => setSkippedInfo(null)}
+        onGoToCart={() => { setSkippedInfo(null); navigate('/cart'); }}
+        info={skippedInfo}
+      />
     </div>
   );
 }

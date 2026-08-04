@@ -421,3 +421,121 @@ exports.createReturnRequest = async (req, res, next) => {
     next(error);
   }
 };
+
+// ─────────────────────────────────────────────────────────────
+// POST /api/orders/:id/reorder — "Buy Again"
+// Fetch prior order items, verify each product is still available,
+// add eligible items to the current cart, skip unavailable/deleted
+// or out-of-stock items, and return a detailed report.
+// Reuses existing Cart/CartItem models — no schema changes.
+// ─────────────────────────────────────────────────────────────
+exports.reorder = async (req, res, next) => {
+  try {
+    const orderId = req.params.id;
+    const order = await req.prisma.order.findFirst({
+      where: { id: orderId, userId: req.user.id },
+      include: { items: true },
+    });
+    if (!order) return next(new AppError('Order not found', 404));
+    if (!order.items || order.items.length === 0) {
+      return res.status(200).json({
+        status: 'success',
+        data: { added: [], skipped: [], addedCount: 0, skippedCount: 0 },
+        message: 'This order has no items to reorder.',
+      });
+    }
+
+    // Ensure a cart exists for the current user
+    const cart = await req.prisma.cart.upsert({
+      where: { userId: req.user.id },
+      update: {},
+      create: { userId: req.user.id },
+    });
+
+    const added = [];
+    const skipped = [];
+
+    for (const item of order.items) {
+      const productId = item.productId;
+      const variantId = item.variantId || null;
+      const size = item.size || null;
+      const quantity = Math.max(1, item.quantity || 1);
+
+      // Verify product still exists and is active
+      const product = await req.prisma.product.findUnique({
+        where: { id: productId },
+        include: { inventory: true, variants: variantId ? { where: { id: variantId } } : false },
+      });
+      if (!product) {
+        skipped.push({ name: item.name, image: item.image, reason: 'DELETED', quantity });
+        continue;
+      }
+      if (!product.isActive) {
+        skipped.push({ name: item.name, image: item.image, reason: 'UNAVAILABLE', quantity, productId });
+        continue;
+      }
+
+      // Stock availability check
+      let available = null;
+      if (variantId && product.variants && product.variants.length) {
+        available = product.variants[0].stock;
+      } else if (product.inventory) {
+        available = product.inventory.trackInventory ? product.inventory.quantity : Infinity;
+      } else {
+        available = Infinity; // no inventory row — treat as available
+      }
+
+      if (available !== Infinity && available <= 0) {
+        skipped.push({ name: product.name, image: item.image, reason: 'OUT_OF_STOCK', quantity, productId });
+        continue;
+      }
+
+      const addQuantity = available === Infinity ? quantity : Math.min(quantity, available);
+
+      // Dedup logic identical to cartController.addToCart
+      const existing = await req.prisma.cartItem.findFirst({
+        where: { cartId: cart.id, productId, variantId, size },
+      });
+      if (existing) {
+        await req.prisma.cartItem.update({
+          where: { id: existing.id },
+          data: { quantity: existing.quantity + addQuantity },
+        });
+      } else {
+        await req.prisma.cartItem.create({
+          data: { cartId: cart.id, productId, variantId, size, quantity: addQuantity },
+        });
+      }
+
+      added.push({
+        name: product.name,
+        image: item.image,
+        quantity: addQuantity,
+        productId,
+        priceChanged: Number(product.price) !== Number(item.price),
+        oldPrice: Number(item.price),
+        newPrice: Number(product.price),
+      });
+    }
+
+    // Audit trail (best-effort)
+    try {
+      const { logAudit } = require('../utils/audit');
+      await logAudit(req.prisma, req, 'ORDER_REORDER', {
+        entity: 'Order', entityId: order.id,
+        newValue: { addedCount: added.length, skippedCount: skipped.length },
+        message: `Reordered from ${order.orderNumber}: ${added.length} added, ${skipped.length} skipped`,
+      });
+    } catch { /* non-blocking */ }
+
+    const msg = added.length === 0
+      ? 'No items could be added to your cart.'
+      : `${added.length} product${added.length === 1 ? '' : 's'} added to cart${skipped.length ? `, ${skipped.length} skipped` : ''}.`;
+
+    res.status(200).json({
+      status: 'success',
+      message: msg,
+      data: { added, skipped, addedCount: added.length, skippedCount: skipped.length },
+    });
+  } catch (error) { next(error); }
+};

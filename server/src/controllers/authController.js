@@ -46,15 +46,31 @@ const sendVerification = async (prisma, user) => {
 
 exports.register = async (req, res, next) => {
   try {
-    const { email, password, firstName, lastName } = req.body;
+    const { email, password, firstName, lastName, referralCode } = req.body;
     const existingUser = await req.prisma.user.findUnique({ where: { email } });
     if (existingUser) return next(new AppError('Email already exists.', 409));
 
     const hashedPassword = await bcrypt.hash(password, 12);
     const user = await req.prisma.user.create({
       data: { email, password: hashedPassword, firstName, lastName },
-      select: { id: true, email: true, firstName: true, lastName: true, role: true, isVerified: true },
+      select: { id: true, email: true, firstName: true, lastName: true, role: true, isVerified: true, isGuest: true, referralCode: true },
     });
+
+    // Auto-generate the user's own referral code (best-effort, non-blocking)
+    try {
+      const referralUtil = require('../utils/referral');
+      const code = await referralUtil.ensureReferralCode(req.prisma, user);
+      user.referralCode = code;
+    } catch (e) { console.error('[referral] code gen failed:', e.message); }
+
+    // Attribute referral if a valid code was provided at signup
+    let referralAttributed = null;
+    if (referralCode && String(referralCode).trim()) {
+      try {
+        const referralUtil = require('../utils/referral');
+        referralAttributed = await referralUtil.attributeReferral(req.prisma, { referralCode, newUser: user });
+      } catch (e) { console.error('[referral] attribution failed:', e.message); }
+    }
 
     sendVerification(req.prisma, user).catch((e) => console.error('[auth] verification email failed:', e.message));
     sendWelcomeEmail(user.email, user.firstName).catch((e) => console.error('[auth] welcome email failed:', e.message));
@@ -82,12 +98,12 @@ exports.register = async (req, res, next) => {
       const { logAudit, ACTIONS } = require('../utils/audit');
       await logAudit(req.prisma, req, ACTIONS.REGISTER, {
         entity: 'User', entityId: user.id, actor: user,
-        newValue: { email: user.email, role: user.role },
-        message: `New user registered: ${user.email}`,
+        newValue: { email: user.email, role: user.role, referralCode: user.referralCode, referredVia: referralAttributed?.referralCode || null },
+        message: `New user registered: ${user.email}${referralAttributed ? ` (via referral ${referralAttributed.referralCode})` : ''}`,
       });
     } catch { /* non-blocking */ }
 
-    res.status(201).json({ status: 'success', data: { user, token, refreshToken } });
+    res.status(201).json({ status: 'success', data: { user, token, refreshToken, referralAttributed: !!referralAttributed } });
   } catch (error) { next(error); }
 };
 
